@@ -1,5 +1,5 @@
 // 注意：請將這裡的 URL 換成你在 Power Automate 拿到的網址
-const API_URL = "https://prod-XX.region.logic.azure.com:443/workflows/..."; 
+const API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
 let recentTransferList = []; // 存放近日清單
 let tempManualDrug = null;
