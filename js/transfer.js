@@ -5,34 +5,38 @@ window.mockDrugDB = [
 ];
 
 let transferQueue = [];
-let pendingItem = null;
 let tempManualDrug = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 綁定借位操作
-    document.getElementById('operatorIdInput').addEventListener('blur', handleOperatorOverride);
+    // 1. 操作藥師綁定：Enter 鍵查詢與自動 Focus，以及重置按鈕
+    document.getElementById('operatorIdInput').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            handleOperatorOverride(this.value);
+        }
+    });
+    document.getElementById('resetOperatorBtn').addEventListener('click', resetOperator);
     
-    // 綁定輸入模式切換
+    // 2. 模式切換
     document.getElementById('modeBarcode').addEventListener('change', toggleInputMode);
     document.getElementById('modeManual').addEventListener('change', toggleInputMode);
     
-    // 綁定條碼解析 (Enter鍵)
+    // 3. 條碼輸入：Enter 鍵直接建檔
     document.getElementById('barcodeInput').addEventListener('keypress', handleBarcodeScan);
     
-    // 綁定模糊搜尋
+    // 4. 手動搜尋與數量輸入：Enter 鍵直接建檔
     document.getElementById('drugSearchInput').addEventListener('input', handleFuzzySearch);
-    document.getElementById('confirmManualBtn').addEventListener('click', confirmManualInput);
+    document.getElementById('manualQtyInput').addEventListener('keypress', handleManualQtyEnter);
     
-    // 綁定卡片按鈕
-    document.getElementById('cancelPreviewBtn').addEventListener('click', cancelPreview);
-    document.getElementById('addToQueueBtn').addEventListener('click', addToQueue);
+    // 5. 送出按鈕
     document.getElementById('submitAllBtn').addEventListener('click', submitQueue);
 });
 
-// --- 借位與單位初始化 (由 app.js 登入成功時呼叫) ---
+// ==========================================
+// A. 借位操作與游標控制
+// ==========================================
 window.initOperatorAndDept = function() {
     setOperator(window.currentUser.empId, window.currentUser.name);
-    
     const outDeptSelect = document.getElementById('outDept');
     for(let i = 0; i < outDeptSelect.options.length; i++) {
         if(outDeptSelect.options[i].value === window.currentUser.dept) {
@@ -47,21 +51,39 @@ function setOperator(id, name) {
     document.getElementById('operatorNameDisplay').innerText = name;
 }
 
-function handleOperatorOverride() {
-    const id = this.value.trim().toUpperCase();
-    if(!id) { setOperator(window.currentUser.empId, window.currentUser.name); return; }
+function resetOperator() {
+    // 重置為登入者，並將游標鎖定在輸入框讓藥師可以直接刷入新員編
+    document.getElementById('operatorIdInput').value = '';
+    setOperator(window.currentUser.empId, window.currentUser.name);
+    document.getElementById('operatorIdInput').focus();
+}
+
+function handleOperatorOverride(inputId) {
+    const id = inputId.trim().toUpperCase();
+    if(!id) { resetOperator(); return; }
     
     const user = window.mockUserDB.find(u => u.empId === id);
-    if(user) { setOperator(user.empId, user.name); } 
-    else {
+    if(user) { 
+        setOperator(user.empId, user.name); 
+        focusCorrectInput(); // 成功後，游標自動跳到條碼或搜尋框
+    } else {
         alert("找不到該員編，請重新輸入");
-        setOperator(window.currentUser.empId, window.currentUser.name);
+        resetOperator();
     }
 }
 
-// --- 模式切換與條碼解析 ---
+function focusCorrectInput() {
+    if(document.getElementById('modeBarcode').checked) {
+        document.getElementById('barcodeInput').focus();
+    } else {
+        document.getElementById('drugSearchInput').focus();
+    }
+}
+
 function toggleInputMode() {
-    cancelPreview();
+    document.getElementById('manualQtySection').classList.add('hidden');
+    tempManualDrug = null;
+    
     if(document.getElementById('modeBarcode').checked) {
         document.getElementById('barcodeSection').classList.remove('hidden');
         document.getElementById('manualSection').classList.add('hidden');
@@ -69,31 +91,69 @@ function toggleInputMode() {
     } else {
         document.getElementById('barcodeSection').classList.add('hidden');
         document.getElementById('manualSection').classList.remove('hidden');
+        document.getElementById('drugSearchInput').value = '';
         document.getElementById('drugSearchInput').focus();
     }
 }
 
+// ==========================================
+// B. 直接建檔核心邏輯 (Direct Save)
+// ==========================================
+function processDirectEntry(data) {
+    const outDept = document.getElementById('outDept').value;
+    const inDept = document.getElementById('inDept').value;
+    
+    if (outDept === inDept) {
+        alert("❌ 撥出單位與撥入單位不能相同！"); 
+        return false;
+    }
+
+    // 封裝完整資料
+    data.outDept = outDept;
+    data.inDept = inDept;
+    data.operatorId = window.currentOperator.empId;
+    data.operatorName = window.currentOperator.name;
+    data.timestamp = new Date().toLocaleString();
+    data.id = Date.now().toString(); // 唯一識別碼，供刪除用
+
+    // 將資料推入貯列最前方 (由新到舊排列)
+    transferQueue.unshift(data);
+    updateQueueUI();
+    return true;
+}
+
+// ==========================================
+// C. 條碼解析與觸發
+// ==========================================
 function handleBarcodeScan(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         const raw = this.value.trim();
-        const parts = raw.split(';'); // 完整保留你要求的切割邏輯
+        const parts = raw.split(';');
         
         if(parts.length >= 4) {
             const drugCode = parts[1].toUpperCase();
             const drug = window.mockDrugDB.find(d => d.code === drugCode) || { name: "未知藥品", sap: "未知" };
             
-            renderPreviewCard({
+            const success = processDirectEntry({
                 mode: "條碼", raw: raw, patientNo: parts[0],
                 drugCode: drugCode, sap: drug.sap, drugName: drug.name,
                 prescribeNo: parts[2], quantity: parts[3]
             });
-        } else { alert("❌ 條碼格式錯誤"); }
+
+        } else { 
+            alert("❌ 條碼格式錯誤，請確認藥袋條碼"); 
+        }
+        
+        // 無論成功失敗，清空輸入框並保持游標，準備刷下一筆
         this.value = '';
+        this.focus();
     }
 }
 
-// --- 手動模糊搜尋 ---
+// ==========================================
+// D. 手動搜尋與觸發
+// ==========================================
 function handleFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
     const list = document.getElementById('autocomplete-list');
@@ -105,72 +165,44 @@ function handleFuzzySearch(e) {
         const item = document.createElement('div');
         item.innerHTML = `<strong>${drug.code}</strong> - ${drug.name}`;
         item.addEventListener('click', () => {
-            e.target.value = ''; list.innerHTML = '';
+            // 選取藥品後，清空搜尋框、顯示數量框，並自動 Focus 數量
+            e.target.value = ''; 
+            list.innerHTML = '';
             tempManualDrug = drug;
             document.getElementById('manualSelectedDrug').value = `${drug.code} - ${drug.name}`;
             document.getElementById('manualQtySection').classList.remove('hidden');
-            document.getElementById('manualQtyInput').value = '';
-            document.getElementById('manualQtyInput').focus();
+            const qtyInput = document.getElementById('manualQtyInput');
+            qtyInput.value = '';
+            qtyInput.focus();
         });
         list.appendChild(item);
     });
 }
 
-function confirmManualInput() {
-    const qty = document.getElementById('manualQtyInput').value;
-    if(!qty || qty <= 0) { alert("請輸入正確數量"); return; }
-    
-    renderPreviewCard({
-        mode: "手動", raw: "", patientNo: "", prescribeNo: "",
-        drugCode: tempManualDrug.code, sap: tempManualDrug.sap,
-        drugName: tempManualDrug.name, quantity: qty
-    });
-    
-    document.getElementById('manualQtySection').classList.add('hidden');
-    tempManualDrug = null;
-}
-
-// --- 預覽與貯列管理 ---
-function renderPreviewCard(data) {
-    pendingItem = data;
-    document.getElementById('previewDrugName').innerText = data.drugName;
-    document.getElementById('previewDrugCode').innerText = data.drugCode;
-    document.getElementById('previewSap').innerText = data.sap;
-    document.getElementById('previewQty').innerText = data.quantity;
-    
-    document.getElementById('previewPatientInfo').innerHTML = data.patientNo ? 
-        `病歷號：${data.patientNo} | 領藥號：${data.prescribeNo}` : "手動建檔 (無病歷號)";
-
-    document.getElementById('unifiedPreviewCard').classList.remove('hidden');
-}
-
-function cancelPreview() {
-    pendingItem = null;
-    document.getElementById('unifiedPreviewCard').classList.add('hidden');
-    document.getElementById('barcodeInput').value = '';
-    document.getElementById('drugSearchInput').value = '';
-    document.getElementById('manualQtySection').classList.add('hidden');
-}
-
-function addToQueue() {
-    if(!pendingItem) return;
-    pendingItem.outDept = document.getElementById('outDept').value;
-    pendingItem.inDept = document.getElementById('inDept').value;
-    
-    if (pendingItem.outDept === pendingItem.inDept) {
-        alert("❌ 撥出單位與撥入單位不能相同！"); return;
+function handleManualQtyEnter(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const qty = this.value;
+        if(!qty || qty <= 0) { alert("請輸入正確數量"); return; }
+        
+        const success = processDirectEntry({
+            mode: "手動", raw: "", patientNo: "", prescribeNo: "",
+            drugCode: tempManualDrug.code, sap: tempManualDrug.sap,
+            drugName: tempManualDrug.name, quantity: qty
+        });
+        
+        if(success) {
+            // 成功建檔後，隱藏數量框，游標自動跳回搜尋框準備下一筆
+            document.getElementById('manualQtySection').classList.add('hidden');
+            tempManualDrug = null;
+            document.getElementById('drugSearchInput').focus();
+        }
     }
-
-    pendingItem.operatorId = window.currentOperator.empId;
-    pendingItem.operatorName = window.currentOperator.name;
-    pendingItem.timestamp = new Date().toLocaleString();
-    pendingItem.id = Date.now().toString();
-
-    transferQueue.unshift(pendingItem); // 加入貯列
-    updateQueueUI();
-    cancelPreview();
 }
 
+// ==========================================
+// E. 貯列渲染與送出 (包含刪除修改功能)
+// ==========================================
 function updateQueueUI() {
     const listDiv = document.getElementById('queueList');
     document.getElementById('queueCount').innerText = `${transferQueue.length} 筆`;
@@ -184,22 +216,27 @@ function updateQueueUI() {
     document.getElementById('submitAllBtn').disabled = false;
     listDiv.innerHTML = '';
 
+    // 由新到舊渲染卡片
     transferQueue.forEach(item => {
         const html = `
-            <div class="card queue-card mb-2 p-2 shadow-sm">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <small class="badge bg-secondary">${item.mode}</small>
+            <div class="card queue-card mb-2 p-3 shadow-sm border-0 border-start border-4 border-primary">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <span class="badge bg-secondary me-2">${item.mode}</span>
+                        <strong class="text-dark">${item.drugCode}</strong>
+                    </div>
                     <small class="text-muted" style="font-size: 0.8rem;">${item.timestamp}</small>
                 </div>
-                <div class="fw-bold text-dark">${item.drugName}</div>
-                <div class="d-flex justify-content-between align-items-end mt-1">
-                    <div class="small text-muted">
-                        ${item.drugCode} | ${item.operatorName}(${item.operatorId})<br>
-                        ${item.outDept} ➔ ${item.inDept}
+                <div class="fw-bold text-dark mb-1">${item.drugName}</div>
+                
+                <div class="row align-items-end mt-2">
+                    <div class="col-8 small text-muted">
+                        <div class="mb-1">👤 ${item.operatorName} (${item.operatorId})</div>
+                        <div>🔄 ${item.outDept} ➔ ${item.inDept}</div>
                     </div>
-                    <div class="text-end">
-                        <span class="fs-5 fw-bold text-primary me-2">Qty: ${item.quantity}</span>
-                        <button class="btn btn-sm btn-outline-danger" onclick="window.removeFromQueue('${item.id}')">刪除</button>
+                    <div class="col-4 text-end">
+                        <div class="fs-4 fw-bold text-danger mb-1">Qty: ${item.quantity}</div>
+                        <button class="btn btn-sm btn-outline-danger w-100" onclick="window.removeFromQueue('${item.id}')">刪除</button>
                     </div>
                 </div>
             </div>
@@ -211,6 +248,7 @@ function updateQueueUI() {
 window.removeFromQueue = function(id) {
     transferQueue = transferQueue.filter(item => item.id !== id);
     updateQueueUI();
+    focusCorrectInput(); // 刪除後游標依然幫你帶回輸入框
 };
 
 function submitQueue() {
@@ -218,8 +256,12 @@ function submitQueue() {
     const remark = document.getElementById('batchRemark').value;
     
     console.log("🚀 批次寫入資料準備：", transferQueue, "備註：", remark);
-    alert(`✅ 成功送出 ${transferQueue.length} 筆調撥資料！`);
     
+    // 這裡未來會接 fetch() 發送給 Power Automate
+    alert(`✅ 成功將 ${transferQueue.length} 筆調撥資料送至資料庫！`);
+    
+    // 註：送出後如果想要保留在「近兩日清單」中，這裡可以只改變卡片狀態而不清空陣列
+    // 目前先以清空作為「已送出」的展示
     transferQueue = [];
     document.getElementById('batchRemark').value = '';
     updateQueueUI();
