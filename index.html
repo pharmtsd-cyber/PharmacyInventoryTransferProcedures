@@ -34,20 +34,13 @@
     <div id="hubSection" class="hidden mx-auto" style="max-width: 800px;">
         <h5 class="mb-4 text-center academic-title">歡迎登入，<span id="hubUserName"></span>！請選擇作業項目：</h5>
         <div class="row g-4">
-            <div class="col-md-4">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="transfer">📦<br>進入調撥作業</button>
-            </div>
-            <div class="col-md-4">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="receive">🔔<br>接收通知作業</button>
-            </div>
-            <div class="col-md-4">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="storage">💻<br>藥庫嫁接作業</button>
-            </div>
+            <div class="col-md-4"><button class="btn academic-hub-btn w-100 shadow-sm" data-target="transfer">📦<br>進入調撥作業</button></div>
+            <div class="col-md-4"><button class="btn academic-hub-btn w-100 shadow-sm" data-target="receive">🔔<br>接收通知作業</button></div>
+            <div class="col-md-4"><button class="btn academic-hub-btn w-100 shadow-sm" data-target="storage">💻<br>藥庫嫁接作業</button></div>
         </div>
     </div>
 
     <div id="mainSection" class="hidden">
-        
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
@@ -63,14 +56,8 @@
                         <h5 class="academic-title mb-0">新增調撥項目</h5>
                         <button class="btn btn-sm btn-outline-secondary hidden" id="backToHubBtn">返回主選單</button>
                     </div>
-                    
-                    <div class="row g-2 mb-4 bg-light p-2 border rounded align-items-center">
-                        <div class="col-auto"><label class="form-label fw-bold text-secondary small mb-0">當前操作藥師員編：</label></div>
-                        <div class="col-4"><input type="text" class="form-control form-control-sm border-secondary" id="operatorIdInput"></div>
-                        <div class="col-auto"><strong id="operatorNameDisplay" class="text-dark"></strong></div>
-                    </div>
 
-                    <div class="row g-3 mb-4">
+                    <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-secondary small">撥出單位</label>
                             <select class="form-select border-secondary" id="outDept">
@@ -92,6 +79,17 @@
                             </select>
                         </div>
                     </div>
+                    
+                    <div class="row g-2 mb-4 bg-light p-2 border rounded align-items-center">
+                        <div class="col-auto"><label class="form-label fw-bold text-secondary small mb-0">操作藥師員編：</label></div>
+                        <div class="col-4">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control border-secondary" id="operatorIdInput" placeholder="輸入後按Enter">
+                                <button class="btn btn-outline-secondary" type="button" id="resetOperatorBtn">重置</button>
+                            </div>
+                        </div>
+                        <div class="col-auto"><strong id="operatorNameDisplay" class="text-primary"></strong></div>
+                    </div>
 
                     <div class="btn-group w-100 mb-4 rounded-0">
                         <input type="radio" class="btn-check" name="inputMode" id="modeBarcode" checked>
@@ -101,7 +99,7 @@
                     </div>
 
                     <div id="barcodeSection" class="mb-3">
-                        <input type="text" class="form-control form-control-lg border-dark" id="barcodeInput" placeholder="在此刷入藥袋條碼..." autocomplete="off">
+                        <input type="text" class="form-control form-control-lg border-primary shadow-sm" id="barcodeInput" placeholder="游標置於此，刷入藥袋條碼後自動建檔..." autocomplete="off">
                     </div>
 
                     <div id="manualSection" class="mb-3 hidden position-relative">
@@ -109,31 +107,9 @@
                         <div id="autocomplete-list" class="autocomplete-items shadow"></div>
                         <div id="manualQtySection" class="mt-3 row g-2 hidden">
                             <div class="col-8"><input type="text" class="form-control bg-light border-secondary" id="manualSelectedDrug" readonly></div>
-                            <div class="col-4 d-flex">
-                                <input type="number" class="form-control border-secondary me-2" id="manualQtyInput" placeholder="數量" min="1">
-                                <button class="btn btn-dark" id="confirmManualBtn">確定</button>
+                            <div class="col-4">
+                                <input type="number" class="form-control border-primary shadow-sm" id="manualQtyInput" placeholder="輸入數量 (按Enter建檔)" min="1">
                             </div>
-                        </div>
-                    </div>
-
-                    <div id="unifiedPreviewCard" class="card academic-preview-card p-3 mt-4 hidden">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h5 id="previewDrugName" class="mb-1 fw-bold text-dark">藥品名稱</h5>
-                                <div class="small text-secondary mb-1">
-                                    代碼：<span id="previewDrugCode" class="fw-bold text-dark"></span> | 
-                                    SAP：<span id="previewSap" class="fw-bold text-dark"></span>
-                                </div>
-                                <div class="small text-secondary" id="previewPatientInfo"></div>
-                            </div>
-                            <div class="text-end">
-                                <span class="d-block text-secondary small fw-bold">調撥數量</span>
-                                <span class="fs-2 fw-bold text-primary" id="previewQty">0</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-end border-top pt-2">
-                            <button class="btn btn-outline-secondary btn-sm me-2" id="cancelPreviewBtn">取消重刷</button>
-                            <button class="btn academic-btn-primary" id="addToQueueBtn">加入調撥貯列 ➔</button>
                         </div>
                     </div>
 
@@ -143,8 +119,8 @@
             <div class="col-lg-5">
                 <div class="card academic-card p-4 h-100 bg-light">
                     <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                        <h5 class="academic-title mb-0">待送出貯列</h5>
-                        <span class="badge bg-dark fs-6" id="queueCount">0 筆</span>
+                        <h5 class="academic-title mb-0">待送出 / 近日調撥清單</h5>
+                        <span class="badge bg-danger fs-6" id="queueCount">0 筆</span>
                     </div>
                     
                     <div id="queueList" class="flex-grow-1" style="max-height: 500px; overflow-y: auto;">
@@ -155,7 +131,7 @@
                         <div class="mb-3">
                             <input type="text" class="form-control border-secondary" id="batchRemark" placeholder="備註說明 (非必填，套用至此批所有項目)">
                         </div>
-                        <button class="btn btn-success btn-lg w-100 fw-bold tracking-wide" id="submitAllBtn" disabled>確認送出以上資料</button>
+                        <button class="btn btn-success btn-lg w-100 fw-bold tracking-wide" id="submitAllBtn" disabled>確認送出至資料庫</button>
                     </div>
                 </div>
             </div>
