@@ -1,11 +1,11 @@
 // ==========================================
 // 1. 全域變數與 API 網址
 // ==========================================
-// 👉 這裡請貼上你的「調撥單筆處理 API」網址
+// 👉 🚨 這是正式版！請務必貼上你在 Power Automate 拿到的「調撥寫入 API」網址
 const API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
-let recentTransferList = []; 
-let tempManualDrug = null;
+let recentTransferList = []; // 存放近兩日清單
+let tempManualDrug = null;   // 存放手動搜尋暫存的藥品
 
 // ==========================================
 // 2. 綁定網頁事件 (DOM 載入完成後執行)
@@ -14,8 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const opSearch = document.getElementById('operatorSearchInput');
     if (opSearch) {
         opSearch.addEventListener('input', handleOperatorSearch);
-        // ✨ 新增：監聽操作藥師輸入框的 Enter 鍵
-        opSearch.addEventListener('keypress', handleOperatorEnter); 
+        opSearch.addEventListener('keypress', handleOperatorEnter); // 監聽 Enter 跳轉
     }
     
     const resetOpBtn = document.getElementById('resetOperatorBtn');
@@ -70,7 +69,7 @@ function setOperator(id, name) {
     if (opDisplay) opDisplay.innerText = `${name} (${id})`;
 }
 
-// ✨ 優化：點擊重置後，游標自動鎖定在操作藥師輸入框
+// 點擊重置後，游標自動鎖定在操作藥師輸入框
 function resetOperator() {
     if (window.currentUser) {
         setOperator(window.currentUser.empId, window.currentUser.name);
@@ -88,6 +87,7 @@ function handleOperatorSearch(e) {
     list.innerHTML = '';
     if (!val || !window.realUserDB) return; 
 
+    // 使用全域真實藥師資料
     const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val));
     matches.forEach(user => {
         const item = document.createElement('div');
@@ -101,23 +101,22 @@ function handleOperatorSearch(e) {
     });
 }
 
-// ✨ 優化：在操作藥師框按下 Enter 的邏輯
+// 在操作藥師框按下 Enter，快速鎖定並跳轉
 function handleOperatorEnter(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         const val = this.value.trim().toUpperCase();
         if (!val || !window.realUserDB) return;
 
-        // 精準尋找員編或姓名完全符合的藥師
         const user = window.realUserDB.find(u => u.empId.toUpperCase() === val || u.name === val);
         
         if (user) {
             setOperator(user.empId, user.name);
-            document.getElementById('operator-autocomplete-list').innerHTML = ''; // 關閉下拉選單
-            focusCorrectInput(); // ✨ 自動將游標跳轉到條碼框
+            document.getElementById('operator-autocomplete-list').innerHTML = ''; 
+            focusCorrectInput(); 
         } else {
             alert("❌ 找不到此員編或姓名，請重新輸入");
-            this.select(); // 選取錯誤文字方便藥師直接重打
+            this.select(); 
         }
     }
 }
@@ -176,29 +175,26 @@ async function processDirectEntry(data) {
     if(overlay) overlay.classList.remove('hidden');
 
     try {
-        // 🚀 正式呼叫 Power Automate API 
-        // (如果你的 API 已經準備好，請確認網址正確，這裡會真實寫入資料庫)
-        /*
+        // 🚀 正式呼叫 Power Automate 寫入 API 
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!response.ok) throw new Error("API 請求失敗");
-        const result = await response.json();
-        payload.id = result.newId; // 取得 SharePoint 回傳的真實 ID
-        */
-
-        // 👉 測試用延遲 (確認 API 可用後，可將上方註解解開，並刪除以下兩行)
-        await new Promise(r => setTimeout(r, 400)); 
-        payload.id = "SP_" + Date.now(); 
         
-        // 寫入成功，推入清單
+        if (!response.ok) throw new Error("API 請求失敗");
+        
+        const result = await response.json();
+        
+        // 取得 SharePoint 回傳的真實 ID
+        payload.id = result.newId; 
+        
+        // 寫入成功，推入清單最上方
         payload.timestamp = new Date().toLocaleString();
         recentTransferList.unshift(payload);
         updateRecentListUI();
         
-        document.getElementById('remarkInput').value = ''; // 清空備註
+        document.getElementById('remarkInput').value = ''; // 成功後清空備註
         return true;
         
     } catch (error) {
@@ -224,11 +220,12 @@ async function handleBarcodeScan(e) {
         if(parts.length >= 4) {
             const drugCode = parts[1].toUpperCase();
             
-            if (!window.mockDrugDB) {
-                alert("藥品資料庫未載入！"); return;
+            if (!window.realDrugDB || window.realDrugDB.length === 0) {
+                alert("藥品資料庫未載入或為空！"); return;
             }
 
-            const drug = window.mockDrugDB.find(d => d.code === drugCode) || { name: "未知藥品", sap: "未知" };
+            // 在真實藥品資料庫尋找，並帶出 name 與 sap
+            const drug = window.realDrugDB.find(d => d.code === drugCode) || { name: "未知藥品", sap: "未知" };
             
             await processDirectEntry({
                 mode: "條碼", raw: raw, patientNo: parts[0],
@@ -240,7 +237,7 @@ async function handleBarcodeScan(e) {
         }
         
         this.value = '';
-        // ✨ 優化：使用 setTimeout 確保游標絕對歸位，不被載入動畫(Overlay)干擾
+        // 確保游標絕對歸位，不被載入動畫干擾
         setTimeout(() => this.focus(), 10);
     }
 }
@@ -252,14 +249,22 @@ function handleFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
     const list = document.getElementById('autocomplete-list');
     list.innerHTML = '';
-    if (!val || !window.mockDrugDB) return; 
+    if (!val || !window.realDrugDB) return; 
 
-    const matches = window.mockDrugDB.filter(d => d.code.includes(val) || d.name.toUpperCase().includes(val) || d.sap.includes(val));
+    // 使用真實藥品資料庫進行比對
+    const matches = window.realDrugDB.filter(d => 
+        (d.code && d.code.includes(val)) || 
+        (d.name && d.name.toUpperCase().includes(val)) || 
+        (d.sap && d.sap.includes(val))
+    ).slice(0, 15); // 效能優化：手動最多顯示 15 筆
+
     matches.forEach(drug => {
         const item = document.createElement('div');
-        item.innerHTML = `<strong>${drug.code}</strong> - ${drug.name}`;
+        // 選單顯示代碼、名稱與 SAP
+        item.innerHTML = `<strong>${drug.code}</strong> - ${drug.name} <small class="text-muted">(${drug.sap})</small>`;
         item.addEventListener('click', () => {
-            e.target.value = ''; list.innerHTML = '';
+            e.target.value = ''; 
+            list.innerHTML = '';
             tempManualDrug = drug;
             document.getElementById('manualSelectedDrug').value = `${drug.code} - ${drug.name}`;
             document.getElementById('manualQtySection').classList.remove('hidden');
@@ -288,7 +293,7 @@ async function handleManualQtyEnter(e) {
         if(success) {
             document.getElementById('manualQtySection').classList.add('hidden');
             tempManualDrug = null;
-            focusCorrectInput(); // 手動輸入完畢後，游標跳回搜尋框
+            focusCorrectInput(); 
         }
     }
 }
@@ -309,12 +314,13 @@ function updateRecentListUI() {
     listDiv.innerHTML = '';
 
     recentTransferList.forEach(item => {
+        // ✨ 卡片加入 SAP 代碼的顯示
         const html = `
             <div class="card queue-card mb-2 p-3 shadow-sm border-0 border-start border-4 border-primary">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
                         <span class="badge bg-secondary me-2">${item.mode}</span>
-                        <strong class="text-dark">${item.drugCode}</strong>
+                        <strong class="text-dark">${item.drugCode} <small class="text-muted fw-normal ms-1">(${item.sap})</small></strong>
                         ${item.prescribeNo ? `<span class="badge bg-info text-dark ms-2">領藥號: ${item.prescribeNo}</span>` : ''}
                     </div>
                     <small class="text-muted" style="font-size: 0.75rem;">${item.timestamp}</small>
@@ -348,40 +354,46 @@ window.editItem = async function(id, currentQty) {
     const newQty = parseInt(inputStr);
     if(isNaN(newQty) || newQty <= 0 || newQty === currentQty) return;
 
-    /*
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: "update", itemId: id, quantity: newQty })
         });
+        
+        if (!response.ok) throw new Error("API更新失敗");
+        
+        // 更新本地端陣列與畫面
+        const target = recentTransferList.find(i => i.id === id);
+        if(target) target.quantity = newQty;
+        updateRecentListUI();
+        
     } catch (e) {
-        alert("更新失敗，請檢查網路"); return;
+        alert("更新失敗，請檢查網路狀態"); 
+    } finally {
+        focusCorrectInput(); // 操作完成，游標歸位
     }
-    */
-    
-    const target = recentTransferList.find(i => i.id === id);
-    if(target) target.quantity = newQty;
-    updateRecentListUI();
-    focusCorrectInput(); // 操作完成，游標歸位
 };
 
 window.deleteItem = async function(id) {
     if(!confirm("確定要將此筆紀錄從資料庫刪除嗎？")) return;
 
-    /*
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: "delete", itemId: id })
         });
+        
+        if (!response.ok) throw new Error("API刪除失敗");
+        
+        // 更新本地端陣列與畫面
+        recentTransferList = recentTransferList.filter(item => item.id !== id);
+        updateRecentListUI();
+        
     } catch (e) {
-        alert("刪除失敗，請檢查網路"); return;
+        alert("刪除失敗，請檢查網路狀態"); 
+    } finally {
+        focusCorrectInput(); // 操作完成，游標歸位
     }
-    */
-
-    recentTransferList = recentTransferList.filter(item => item.id !== id);
-    updateRecentListUI();
-    focusCorrectInput(); // 操作完成，游標歸位
 };
