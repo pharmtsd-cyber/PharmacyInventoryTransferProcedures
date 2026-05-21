@@ -3,20 +3,21 @@
 // ==========================================
 // 👉 請將下方引號內的網址替換為你剛才建立的「讀取藥師名冊 API」網址
 const LOGIN_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/31056a58d4224c90a3de849e13441083/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=m7DAOp9ZVUI_nmFceAp05AZvVSpvwnresGRiK579_MA"; 
+const DRUG_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/222b3b63e0244b6ea7e8f1768594ab45/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nT2eDEqXKh7eeKPmywbAvbPE_WWLXxX98Hm93OCvCio";
 
-window.realUserDB = []; // 用來存放從 SharePoint 抓下來的真實藥師資料
+window.realUserDB = []; 
+window.realDrugDB = []; // 存放真實藥品資料
 window.currentUser = {};
 window.currentOperator = {}; 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 網頁載入時，立刻去抓取藥師資料
-    fetchPharmacistData();
+    // 網頁載入時，立刻「同時」抓取藥師與藥品資料
+    fetchSystemData();
 
-    // 綁定全域事件 (加入防呆)
+    // 綁定全域事件
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     
-    // 支援在員編輸入框按下 Enter 直接登入
     const empIdInput = document.getElementById('empIdInput');
     if (empIdInput) {
         empIdInput.addEventListener('keypress', (e) => {
@@ -43,28 +44,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 2. 系統初始化 (抓取真實資料)
+// 2. 系統初始化 (平行載入雙資料庫)
 // ==========================================
-async function fetchPharmacistData() {
+async function fetchSystemData() {
     const loginBtn = document.getElementById('loginBtn');
     if(loginBtn) {
         loginBtn.disabled = true;
-        loginBtn.innerText = "連線資料庫中，請稍候...";
+        loginBtn.innerText = "載入系統主檔中，請稍候...";
     }
 
     try {
-        const response = await fetch(LOGIN_API_URL, { method: 'GET' });
-        if(!response.ok) throw new Error("API連線失敗");
+        // 使用 Promise.all 平行發送兩個請求，大幅節省等待時間
+        const [userRes, drugRes] = await Promise.all([
+            fetch(LOGIN_API_URL, { method: 'GET' }),
+            fetch(DRUG_API_URL, { method: 'GET' })
+        ]);
+
+        if(!userRes.ok || !drugRes.ok) throw new Error("API連線失敗");
         
-        window.realUserDB = await response.json();
+        window.realUserDB = await userRes.json();
+        window.realDrugDB = await drugRes.json();
         
         if(loginBtn) {
             loginBtn.disabled = false;
             loginBtn.innerText = "登入驗證";
         }
-        console.log("✅ 藥師名冊載入成功，共", window.realUserDB.length, "筆");
+        console.log(`✅ 載入成功：藥師 ${window.realUserDB.length} 筆，藥品 ${window.realDrugDB.length} 筆`);
     } catch (error) {
-        alert("無法載入藥師名冊，請檢查網路或 API 設定！");
+        alert("系統資料載入失敗，請檢查網路或 API 設定！");
         console.error(error);
         if(loginBtn) loginBtn.innerText = "載入失敗";
     }
