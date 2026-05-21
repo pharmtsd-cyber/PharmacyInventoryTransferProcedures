@@ -89,20 +89,14 @@ function handleLogin() {
         return; 
     }
 
-    // 依照你之前的需求設定特殊權限邏輯 (藥品管理組、智管組 或 具有主管權限)
-    // 這裡的邏輯可以依照你 SharePoint 回傳的真實字眼做微調
-    const isSpecial = (
-        user.dept === "藥品管理組" || 
-        user.dept === "智能運管組" || 
-        user.role === "管理藥師" || 
-        user.role === "系統管理員" ||
-        user.role === "主管"
-    );
+    // 透過 API 回傳的布林值，直接精準判斷是否擁有特殊權限
+    const isSpecial = (user.isSupervisor === true || user.isSmartMgmt === true);
 
     window.currentUser = {
         empId: user.empId,
         name: user.name,
-        dept: user.dept,
+        // 因為 API 沒傳 dept，這裡直接給定一個預設字串，或依需求留空
+        dept: user.isSmartMgmt ? "智能運管組" : "藥學部", 
         isSpecial: isSpecial
     };
     
