@@ -57,7 +57,7 @@ async function fetchSystemData() {
         // 使用 Promise.all 平行發送兩個請求，大幅節省等待時間
         const [userRes, drugRes] = await Promise.all([
             fetch(LOGIN_API_URL, { method: 'GET' }),
-            fetch(DRUG_API_URL, { method: 'GET' })
+            fetch(DRUG_API_URL + "&action=getDrugs", { method: 'GET' })
         ]);
 
         if(!userRes.ok || !drugRes.ok) throw new Error("API連線失敗");
