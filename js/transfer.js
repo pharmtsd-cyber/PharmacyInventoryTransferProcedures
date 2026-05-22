@@ -364,6 +364,13 @@ function updateRecentListUI() {
 }
 
 window.editItem = async function(id, currentQty) {
+    // 🛡️ 防呆 1：檢查 ID 是否為有效數字
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) {
+        alert("❌ 無效的資料庫 ID！這可能是測試模式殘留的資料，請重新刷入一筆新資料進行測試。");
+        return;
+    }
+
     const inputStr = prompt("請輸入修改後的數量：", currentQty);
     if(inputStr === null) return;
     
@@ -374,12 +381,23 @@ window.editItem = async function(id, currentQty) {
     if(!target) return;
 
     try {
-        // ✨ 修改：將原有的整包資料夾帶送出，騙過 Power Automate 的格式驗證，並強制將 itemId 轉為整數
+        // ✨ 完美對齊 Power Automate 結構，過濾掉前端專用的時間戳記
         const payload = {
-            ...target,
             action: "update",
-            itemId: parseInt(id, 10),
-            quantity: newQty
+            itemId: parsedId,
+            mode: target.mode || "",
+            raw: target.raw || "",
+            patientNo: target.patientNo || "",
+            prescribeNo: target.prescribeNo || "",
+            drugCode: target.drugCode || "",
+            sap: target.sap || "",
+            drugName: target.drugName || "",
+            quantity: newQty,
+            outDept: target.outDept || "",
+            inDept: target.inDept || "",
+            operatorId: target.operatorId || "",
+            operatorName: target.operatorName || "",
+            remark: target.remark || ""
         };
 
         const response = await fetch(API_URL, {
@@ -388,7 +406,7 @@ window.editItem = async function(id, currentQty) {
             body: JSON.stringify(payload)
         });
         
-        if (!response.ok) throw new Error("API更新回傳失敗碼");
+        if (!response.ok) throw new Error(`伺服器回傳 ${response.status}`);
         
         // 更新成功，修改本地記憶並存檔
         target.quantity = newQty;
@@ -396,7 +414,7 @@ window.editItem = async function(id, currentQty) {
         updateRecentListUI();
         
     } catch (e) {
-        alert("❌ 更新失敗，請檢查網路狀態或重試。\n(錯誤代碼: " + e.message + ")");
+        alert("❌ 更新失敗，請檢查網路狀態。\n(錯誤原因: " + e.message + ")");
         console.error(e);
     } finally {
         focusCorrectInput(); 
@@ -404,17 +422,36 @@ window.editItem = async function(id, currentQty) {
 };
 
 window.deleteItem = async function(id) {
+    // 🛡️ 防呆 1：檢查 ID 是否為有效數字
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) {
+        alert("❌ 無效的資料庫 ID！這可能是測試模式殘留的資料，請重新刷入一筆新資料進行測試。");
+        return;
+    }
+
     if(!confirm("確定要將此筆紀錄從資料庫刪除嗎？")) return;
 
     const target = recentTransferList.find(i => i.id === id);
     if(!target) return;
 
     try {
-        // ✨ 修改：送出完整結構，並強制轉數字 ID
+        // ✨ 完美對齊 Power Automate 結構
         const payload = {
-            ...target,
             action: "delete",
-            itemId: parseInt(id, 10)
+            itemId: parsedId,
+            mode: target.mode || "",
+            raw: target.raw || "",
+            patientNo: target.patientNo || "",
+            prescribeNo: target.prescribeNo || "",
+            drugCode: target.drugCode || "",
+            sap: target.sap || "",
+            drugName: target.drugName || "",
+            quantity: target.quantity || 0,
+            outDept: target.outDept || "",
+            inDept: target.inDept || "",
+            operatorId: target.operatorId || "",
+            operatorName: target.operatorName || "",
+            remark: target.remark || ""
         };
 
         const response = await fetch(API_URL, {
@@ -423,7 +460,7 @@ window.deleteItem = async function(id) {
             body: JSON.stringify(payload)
         });
         
-        if (!response.ok) throw new Error("API刪除回傳失敗碼");
+        if (!response.ok) throw new Error(`伺服器回傳 ${response.status}`);
         
         // 刪除成功，從陣列剔除並存檔
         recentTransferList = recentTransferList.filter(item => item.id !== id);
@@ -431,7 +468,7 @@ window.deleteItem = async function(id) {
         updateRecentListUI();
         
     } catch (e) {
-        alert("❌ 刪除失敗，請檢查網路狀態或重試。\n(錯誤代碼: " + e.message + ")");
+        alert("❌ 刪除失敗，請檢查網路狀態。\n(錯誤原因: " + e.message + ")");
         console.error(e);
     } finally {
         focusCorrectInput(); 
