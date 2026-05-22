@@ -37,6 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const manualQtyInput = document.getElementById('manualQtyInput');
     if (manualQtyInput) manualQtyInput.addEventListener('keypress', handleManualQtyEnter);
+
+    const outDeptSelect = document.getElementById('outDept');
+    if (outDeptSelect) outDeptSelect.addEventListener('change', (e) => localStorage.setItem('savedOutDept', e.target.value));
+    
+    const inDeptSelect = document.getElementById('inDept');
+    if (inDeptSelect) inDeptSelect.addEventListener('change', (e) => localStorage.setItem('savedInDept', e.target.value));
     
     document.addEventListener("click", function (e) {
         if (e.target !== document.getElementById('operatorSearchInput')) {
@@ -80,11 +86,30 @@ window.initOperatorAndDept = function() {
     setOperator(window.currentUser.empId, window.currentUser.name);
     
     const outDeptSelect = document.getElementById('outDept');
-    if (!outDeptSelect) return;
-    for(let i = 0; i < outDeptSelect.options.length; i++) {
-        if(outDeptSelect.options[i].value === window.currentUser.dept) {
-            outDeptSelect.selectedIndex = i; break;
+    const inDeptSelect = document.getElementById('inDept');
+    
+    // 讀取瀏覽器硬碟中的記憶
+    const savedOutDept = localStorage.getItem('savedOutDept');
+    const savedInDept = localStorage.getItem('savedInDept');
+
+    // 處理撥出單位
+    if (outDeptSelect) {
+        if (savedOutDept) {
+            outDeptSelect.value = savedOutDept; // 優先使用上次的記憶
+        } else {
+            // 如果從來沒設定過，嘗試預設為登入藥師的單位
+            for(let i = 0; i < outDeptSelect.options.length; i++) {
+                if(outDeptSelect.options[i].value === window.currentUser.dept) {
+                    outDeptSelect.selectedIndex = i; 
+                    break;
+                }
+            }
         }
+    }
+
+    // 處理撥入單位
+    if (inDeptSelect && savedInDept) {
+        inDeptSelect.value = savedInDept; // 優先使用上次的記憶
     }
 };
 
