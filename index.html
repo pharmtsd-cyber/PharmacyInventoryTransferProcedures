@@ -51,7 +51,7 @@
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
-            <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥庫嫁接</a></li>
+            <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥庫SAP作業</a></li>
             <li class="nav-item"><a class="nav-link" data-tab="history" href="#">歷史查詢</a></li>
         </ul>
 
@@ -146,8 +146,66 @@
         </div>
 
         <div id="content-receive" class="card academic-card p-5 hidden text-center"><h4 class="academic-title">接收通知作業區</h4></div>
-        <div id="content-storage" class="card academic-card p-5 hidden text-center"><h4 class="academic-title">藥庫批次嫁接作業區</h4></div>
-        <div id="content-history" class="card academic-card p-5 hidden text-center"><h4 class="academic-title">歷史紀錄查詢</h4></div>
+        <div id="content-history" class="hidden">
+            <div class="card academic-card p-4">
+                <h5 class="academic-title border-bottom pb-2 mb-3">線上調撥紀錄查詢與異常通報</h5>
+                
+                <div class="row g-3 mb-4 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">開始日期</label>
+                        <input type="date" class="form-control" id="histStartDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">結束日期</label>
+                        <input type="date" class="form-control" id="histEndDate">
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100" id="histSearchBtn">🔍 查詢紀錄</button>
+                    </div>
+                </div>
+
+                <div id="histLoading" class="text-center text-primary my-4 hidden">
+                    <span class="spinner-border spinner-border-sm me-2"></span>資料載入中...
+                </div>
+                
+                <div id="histResultList" style="max-height: 600px; overflow-y: auto;">
+                    <div class="text-center text-muted mt-4">請選擇日期區間並點擊查詢</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-storage" class="hidden">
+            <div class="card academic-card p-4 bg-light">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="academic-title mb-0">藥庫SAP作業</h5>
+                    <a href="https://你的SharePoint藥品清單網址..." target="_blank" class="btn btn-sm btn-warning fw-bold shadow-sm">
+                        ✏️ 更新藥品清單主檔
+                    </a>
+                </div>
+
+                <div class="row g-3 mb-4 align-items-end bg-white p-3 rounded border">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">開始日期</label>
+                        <input type="date" class="form-control" id="sapStartDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">結束日期</label>
+                        <input type="date" class="form-control" id="sapEndDate">
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-dark w-100" id="sapSearchBtn">📥 撈取未處理清單</button>
+                    </div>
+                </div>
+
+                <div id="sapLoading" class="text-center text-dark my-4 hidden">
+                    <span class="spinner-border spinner-border-sm me-2"></span>資料撈取與分群中...
+                </div>
+                
+                <div id="sapResultList" style="max-height: 700px; overflow-y: auto;">
+                    <div class="text-center text-muted mt-4">請點擊上方按鈕撈取資料</div>
+                </div>
+            </div>
+        </div>
 
     </div>
 </div>
