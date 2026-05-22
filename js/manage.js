@@ -24,7 +24,7 @@ async function loadHistoryRecords() {
     listDiv.innerHTML = '';
 
     try {
-        const response = await fetch(GET_RECORDS_API_URL, { method: 'GET' });
+        const response = await fetch(GET_API_URL + "&action=getHistory", { method: 'GET' });
         if(!response.ok) throw new Error("讀取失敗");
         let records = await response.json();
 
