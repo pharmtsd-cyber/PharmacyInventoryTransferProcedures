@@ -5,6 +5,7 @@ const GET_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environmen
 
 window.realUserDB = []; 
 window.realDrugDB = []; 
+window.ctrlDrugDB = [];
 window.currentUser = {};
 window.currentOperator = {}; 
 
@@ -63,7 +64,7 @@ function applyTheme(station) {
 }
 
 // ==========================================
-// 2. 系統初始化 (平行載入)
+// 2. 系統初始化 (平行載入三大主檔)
 // ==========================================
 async function fetchSystemData() {
     const loginBtn = document.getElementById('loginBtn');
@@ -73,23 +74,29 @@ async function fetchSystemData() {
     }
 
     try {
-        const [userRes, drugRes] = await Promise.all([
+        // ✨ 一次平行發送三個請求，極大化載入速度
+        const [userRes, drugRes, ctrlDrugRes] = await Promise.all([
             fetch(GET_API_URL + "&action=getUsers", { method: 'GET' }),
-            fetch(GET_API_URL + "&action=getDrugs", { method: 'GET' })
+            fetch(GET_API_URL + "&action=getDrugs", { method: 'GET' }),
+            fetch(GET_API_URL + "&action=getCtrlDrugs", { method: 'GET' })
         ]);
 
-        if(!userRes.ok || !drugRes.ok) throw new Error("主檔 API 連線失敗");
+        if(!userRes.ok || !drugRes.ok || !ctrlDrugRes.ok) throw new Error("主檔 API 連線失敗");
         
         window.realUserDB = await userRes.json();
         window.realDrugDB = await drugRes.json();
+        window.ctrlDrugDB = await ctrlDrugRes.json(); // ✨ 存入全域變數
+        
+        // 可選：只保留狀態為「啟用」的管制藥
+        window.ctrlDrugDB = window.ctrlDrugDB.filter(d => d.status === '啟用');
         
         if(loginBtn) {
             loginBtn.disabled = false;
             loginBtn.innerText = "登入驗證";
         }
-        console.log(`✅ 萬能 GET API 載入成功：藥師名冊 ${window.realUserDB.length} 筆，藥品主檔 ${window.realDrugDB.length} 筆`);
+        console.log(`✅ 系統載入成功：藥師 ${window.realUserDB.length} 筆，一般藥品 ${window.realDrugDB.length} 筆，管制藥品 ${window.ctrlDrugDB.length} 筆`);
     } catch (error) {
-        alert("系統資料載入失敗，請檢查網路或萬能 GET API 設定！");
+        alert("系統資料載入失敗，請檢查網路或 GET API 設定！");
         console.error(error);
         if(loginBtn) loginBtn.innerText = "載入失敗";
     }
