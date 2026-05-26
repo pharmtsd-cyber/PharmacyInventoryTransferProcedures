@@ -159,13 +159,13 @@ async function processCtrlEntry(data) {
 
     // 建立完整的管藥流水帳欄位結構
     const payload = {
-        action: "createCtrl", // 對應後端 POST API 的專屬 Switch 分支
+        action: "createCtrl", 
         itemId: 0,
-        station: window.currentUser.station, // 操作單位 (鎖定機台)
+        station: window.currentUser.station, 
         drugCode: data.drugCode,
         drugName: data.drugName,
-        sapCode: data.sapCode,
-        quantity: parseInt(data.quantity, 10), // 帶正負號的異動整數
+        sap: data.sapCode, // ✨ 修正：嚴格對齊 API 結構的 sap 欄位
+        quantity: parseInt(data.quantity, 10), 
         actionType: data.actionType,
         patientNo: data.patientNo || "",
         prescribeNo: data.prescribeNo || "",
