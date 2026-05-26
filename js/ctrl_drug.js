@@ -1,26 +1,14 @@
-/**
- * ====================================================================
- * 💊 一到三級管制藥作業專屬獨立模組 (js/ctrl_drug.js)
- * 完美移植一般調撥雙模式，全面支援病歷號、領藥號與原始條碼稽核軌跡
- * 內建今日/近兩日地端秒切開關、即時編輯數量與作廢紀錄功能
- * ====================================================================
- */
-
 // ✨ 1. 明確宣告專屬 API 網址，徹底消滅 404
 const CTRL_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
 // ✨ 2. 建立背景上傳安全計數器
 let pendingUploads = 0; 
 
+// ✨ 3. 全域變數 (只能有一組！)
 let ctrlTransferList = [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
 let ctrlTimeFilter = 'today';
-
-let ctrlTransferList = [];
-window.ctrlCurrentOperator = {}; 
-let tempManualCtrlDrug = null;
-let ctrlTimeFilter = 'today'; // ✨ 紀錄目前時間過濾狀態 ('today' 或 '2days')
 
 // ==========================================
 // 1. DOM 載入完成與事件綁定
