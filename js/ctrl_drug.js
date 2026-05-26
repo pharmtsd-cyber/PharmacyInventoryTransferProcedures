@@ -2,12 +2,14 @@
  * ====================================================================
  * 💊 一到三級管制藥作業專屬獨立模組 (js/ctrl_drug.js)
  * 完美移植一般調撥雙模式，全面支援病歷號、領藥號與原始條碼稽核軌跡
+ * 內建今日/近兩日地端秒切開關、即時編輯數量與作廢紀錄功能
  * ====================================================================
  */
 
 let ctrlTransferList = [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
+let ctrlTimeFilter = 'today'; // ✨ 紀錄目前時間過濾狀態 ('today' 或 '2days')
 
 // ==========================================
 // 1. DOM 載入完成與事件綁定
@@ -15,12 +17,30 @@ let tempManualCtrlDrug = null;
 document.addEventListener('DOMContentLoaded', () => {
     loadCtrlListFromLocal();
 
-    // 綁定模式切換
+    // 模式切換 (條碼/手動)
     const ctrlModeBarcode = document.getElementById('ctrlModeBarcode');
     if (ctrlModeBarcode) ctrlModeBarcode.addEventListener('change', toggleCtrlInputMode);
     
     const ctrlModeManual = document.getElementById('ctrlModeManual');
     if (ctrlModeManual) ctrlModeManual.addEventListener('change', toggleCtrlInputMode);
+
+    // ✨ 新增：紀錄時間切換按鈕事件
+    const ctrlTimeToday = document.getElementById('ctrlTimeToday');
+    const ctrlTimeTwoDays = document.getElementById('ctrlTimeTwoDays');
+    if (ctrlTimeToday) {
+        ctrlTimeToday.addEventListener('change', () => {
+            ctrlTimeFilter = 'today';
+            document.getElementById('ctrlListTitle').innerText = '今日管藥操作紀錄';
+            updateCtrlListUI();
+        });
+    }
+    if (ctrlTimeTwoDays) {
+        ctrlTimeTwoDays.addEventListener('change', () => {
+            ctrlTimeFilter = '2days';
+            document.getElementById('ctrlListTitle').innerText = '近兩日管藥操作紀錄';
+            updateCtrlListUI();
+        });
+    }
 
     // 條碼刷入事件
     const ctrlBarcode = document.getElementById('ctrlBarcodeInput');
@@ -113,7 +133,7 @@ function toggleCtrlInputMode() {
 }
 
 // ==========================================
-// 3. 核心 1：條碼解析與嚴格篩選 (相容多重欄位拼字)
+// 3. 條碼解析與嚴格篩選
 // ==========================================
 async function handleCtrlBarcodeScan(e) {
     if (e.key === 'Enter') {
@@ -124,8 +144,6 @@ async function handleCtrlBarcodeScan(e) {
         const parts = raw.split(';');
         if(parts.length >= 4) {
             const scannedDrugCode = parts[1].toUpperCase();
-            
-            // 🛡️ 智慧相容：部分機台回傳可能因 API 映射導致大腦變數欄位拼字不同，同時比對 drugCode 與 code
             const ctrlDrug = window.ctrlDrugDB.find(d => 
                 (d.drugCode && d.drugCode.toUpperCase() === scannedDrugCode) || 
                 (d.code && d.code.toUpperCase() === scannedDrugCode)
@@ -142,9 +160,9 @@ async function handleCtrlBarcodeScan(e) {
 
             await processCtrlEntry({
                 mode: "條碼",
-                raw: raw, // 原始條碼存檔
-                patientNo: parts[0], // 提取病歷號
-                prescribeNo: parts[2], // 提取領藥號
+                raw: raw,
+                patientNo: parts[0],
+                prescribeNo: parts[2],
                 drugCode: ctrlDrug.drugCode || ctrlDrug.code,
                 drugName: ctrlDrug.drugName || ctrlDrug.name,
                 sapCode: ctrlDrug.sapCode || ctrlDrug.sap || "未知",
@@ -160,7 +178,7 @@ async function handleCtrlBarcodeScan(e) {
 }
 
 // ==========================================
-// 4. 核心 2：完美移植手動模糊搜尋模組
+// 4. 手動模糊搜尋模組
 // ==========================================
 function handleCtrlFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
@@ -210,7 +228,7 @@ async function handleCtrlManualQtyEnter(e) {
         const success = await processCtrlEntry({
             mode: "手動",
             raw: "手動輸入無條碼",
-            patientNo: "手動無病歷號", // 手動模式預設填寫值
+            patientNo: "手動無病歷號",
             prescribeNo: "手動無領藥號",
             drugCode: code,
             drugName: name,
@@ -227,7 +245,7 @@ async function handleCtrlManualQtyEnter(e) {
 }
 
 // ==========================================
-// 5. 萬能背景寫入 API (地端優先，同步儲存病歷號/領藥號)
+// 5. 萬能背景寫入 API (地端優先)
 // ==========================================
 async function processCtrlEntry(data) {
     if (!window.ctrlCurrentOperator || !window.ctrlCurrentOperator.empId) {
@@ -237,7 +255,6 @@ async function processCtrlEntry(data) {
     const actionSelect = document.getElementById('ctrlActionType');
     const remarkValue = document.getElementById('ctrlRemarkInput').value.trim();
 
-    // 臨床特定項目強制備註檢查
     if ((actionSelect.value.includes('退藥') || actionSelect.value.includes('報銷') || actionSelect.value.includes('盤盈虧')) && !remarkValue) {
         alert(`❌ 執行【${actionSelect.value}】作業時，必須在上方備註欄位填寫說明原因！`);
         return false;
@@ -253,15 +270,15 @@ async function processCtrlEntry(data) {
         quantity: parseInt(data.quantity, 10),
         actionType: actionSelect.value,
         mode: data.mode,
-        raw: data.raw, // 傳送原始條碼
-        patientNo: data.patientNo, // 傳送病歷號
-        prescribeNo: data.prescribeNo, // 傳送領藥號
+        raw: data.raw,
+        patientNo: data.patientNo,
+        prescribeNo: data.prescribeNo,
         operatorId: window.ctrlCurrentOperator.empId,
         operatorName: window.ctrlCurrentOperator.name,
-        remark: remarkValue
+        remark: remarkValue,
+        recordStatus: "正常" // 預設狀態為正常
     };
 
-    // 🚀 地端優先 (Local First) 機制：生成臨時虛擬 ID，0 延遲渲染介面
     payload.id = "TEMP_" + Date.now();
     payload.timestamp = new Date().toLocaleString();
     payload.rawTime = Date.now();
@@ -274,7 +291,6 @@ async function processCtrlEntry(data) {
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    // 背景非同步拋轉
     fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -283,8 +299,6 @@ async function processCtrlEntry(data) {
     .then(async (response) => {
         if (!response.ok) throw new Error();
         const result = await response.json();
-        
-        // 雲端拋轉成功：靜默將地端臨時單號替換為真實 SharePoint ID
         const target = ctrlTransferList.find(i => i.id === payload.id);
         if (target && result.newId) {
             target.id = result.newId.toString();
@@ -292,7 +306,7 @@ async function processCtrlEntry(data) {
         }
     })
     .catch((error) => {
-        console.error("❌ 管藥拋轉失敗，資料已安全鎖定於地端暫存中。", error);
+        console.error("❌ 管藥拋轉失敗", error);
         const card = document.getElementById(`ctrl-card-${payload.id}`);
         if(card) card.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
     })
@@ -304,7 +318,175 @@ async function processCtrlEntry(data) {
 }
 
 // ==========================================
-// 6. 輔助工具：操作藥師模糊搜尋與本地硬碟記憶
+// 6. ✨ 核心升級：地端管藥紀錄「編輯數量」與「作廢紀錄」
+// ==========================================
+window.editCtrlItem = async function(id, currentQty, actionType) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) {
+        alert("❌ 此資料尚未同步至雲端，暫不開放修改。請於 1 秒後重試。"); return;
+    }
+
+    // 取得該筆紀錄在選單上是正數還是負數
+    const absoluteQty = Math.abs(currentQty);
+    const inputStr = prompt(`【修改管藥調劑數量】\n目前項目：${actionType}\n請輸入修改後的「絕對數量」（大於 0 的整數）：`, absoluteQty);
+    if(inputStr === null) return;
+    
+    const newAbsQty = parseInt(inputStr, 10);
+    if(isNaN(newAbsQty) || newAbsQty <= 0) { alert("請輸入有效的正整數！"); return; }
+
+    // 依據原本的正負號，還原具備正負值的數量
+    const originalSign = currentQty >= 0 ? 1 : -1;
+    const newFinalQty = newAbsQty * originalSign;
+
+    if (newFinalQty === currentQty) return;
+
+    const target = ctrlTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    const overlay = document.getElementById('ctrlLoadingOverlay');
+    if (overlay) overlay.classList.remove('hidden');
+
+    try {
+        const payload = {
+            action: "updateCtrl", // 🤖 後端需要處理此分支
+            itemId: parsedId,
+            station: target.station,
+            drugCode: target.drugCode,
+            quantity: newFinalQty, // 新數量
+            operatorId: window.currentUser.empId, // 記錄是誰改的
+            operatorName: window.currentUser.name
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) throw new Error();
+        
+        // 更新地端記憶
+        target.quantity = newFinalQty;
+        target.timestamp = new Date().toLocaleString() + " (已修改)";
+        saveCtrlListToLocal();
+        updateCtrlListUI();
+        alert("✅ 管藥庫存與紀錄修改成功！");
+    } catch (e) {
+        alert("❌ 修改失敗，請檢查網路連線。");
+    } finally {
+        if (overlay) overlay.classList.add('hidden');
+    }
+};
+
+window.voidCtrlItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) {
+        alert("❌ 此資料尚未同步至雲端，暫不開放作廢。請於 1 秒後重試。"); return;
+    }
+
+    const voidReason = prompt("🚨【管藥稽核警告：作廢紀錄】\n管制藥品一經登記不得刪除，只能作廢。\n請輸入嚴格的「作廢理由/退槍原因」：");
+    if (voidReason === null) return;
+    if (!voidReason.trim()) { alert("❌ 必須輸入作廢理由，否則無法作廢！"); return; }
+
+    const target = ctrlTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    const overlay = document.getElementById('ctrlLoadingOverlay');
+    if (overlay) overlay.classList.remove('hidden');
+
+    try {
+        const payload = {
+            action: "voidCtrl", // 🤖 後端需要處理此分支
+            itemId: parsedId,
+            station: target.station,
+            drugCode: target.drugCode,
+            quantity: target.quantity, // 用於扣回庫存的基準
+            voidReason: voidReason,
+            operatorId: window.currentUser.empId, // 蓋上作廢人戳記
+            operatorName: window.currentUser.name
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) throw new Error();
+        
+        // 地端同步更新：從前台清單移除（或標示作廢，此處依據調撥習慣直接剔除）
+        ctrlTransferList = ctrlTransferList.filter(item => item.id !== id);
+        saveCtrlListToLocal();
+        updateCtrlListUI();
+        alert("✅ 該管藥紀錄已成功作廢，庫存已自動回沖！");
+    } catch (e) {
+        alert("❌ 作廢失敗，請檢查網路連線。");
+    } finally {
+        if (overlay) overlay.classList.add('hidden');
+    }
+};
+
+// ==========================================
+// 7. 右側管藥操作紀錄 UI 渲染 (內建地端時間過濾)
+// ==========================================
+function updateCtrlListUI() {
+    const listDiv = document.getElementById('ctrlRecentList');
+    if(!listDiv) return;
+
+    // ✨ 智慧地端篩選：今日 vs 近兩日
+    const todayStr = new Date().toLocaleDateString();
+    const filteredList = ctrlTransferList.filter(item => {
+        if (ctrlTimeFilter === 'today') {
+            return new Date(item.rawTime).toLocaleDateString() === todayStr;
+        }
+        return true; // 近兩日則全部呈現 (2日內)
+    });
+
+    if(document.getElementById('ctrlQueueCount')) {
+        document.getElementById('ctrlQueueCount').innerText = `${filteredList.length} 筆`;
+    }
+    
+    if(filteredList.length === 0) {
+        listDiv.innerHTML = `<div class="text-center text-muted mt-5 py-4">此區間尚無管制藥操作紀錄</div>`; return;
+    }
+
+    let html = '';
+    filteredList.forEach(item => {
+        const isQtyNegative = item.quantity < 0;
+        const badgeColor = isQtyNegative ? 'bg-danger' : 'bg-success';
+        const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
+        
+        html += `
+            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${isQtyNegative ? 'border-danger':'border-success'}" id="ctrl-card-${item.id}">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div>
+                        <span class="badge ${badgeColor} me-2">${item.actionType}</span>
+                        <strong class="text-dark">${item.drugCode}</strong>
+                        ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
+                    </div>
+                    <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
+                </div>
+                <div class="fw-bold text-dark small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
+                ${item.patientNo && !item.patientNo.includes('手動') ? `<div class="small text-muted" style="font-size:0.75rem;">🏥 病歷號: ${item.patientNo}</div>` : ''}
+                ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
+                
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
+                    <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
+                    <div class="col-5 text-end d-flex align-items-center justify-content-end">
+                        <strong class="fs-5 ${isQtyNegative ? 'text-danger':'text-success'} me-2">${qtyDisplay} 支</strong>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')">✏️</button>
+                            <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    });
+    listDiv.innerHTML = html;
+}
+
+// ==========================================
+// 8. 輔助工具：操作藥師模糊搜尋
 // ==========================================
 function setCtrlOperator(id, name) {
     window.ctrlCurrentOperator = { empId: id, name: name };
@@ -347,68 +529,4 @@ function handleCtrlOperatorEnter(e) {
             alert("❌ 找不到此藥師身分"); this.select();
         }
     }
-}
-
-function focusCorrectCtrlInput() {
-    if(document.getElementById('ctrlModeBarcode').checked) {
-        document.getElementById('ctrlBarcodeInput').focus();
-    } else {
-        document.getElementById('ctrlDrugSearchInput').focus();
-    }
-}
-
-function saveCtrlListToLocal() {
-    const key = `ctrlData_${window.currentUser.station || 'default'}`;
-    localStorage.setItem(key, JSON.stringify(ctrlTransferList));
-}
-
-function loadCtrlListFromLocal() {
-    const key = `ctrlData_${window.currentUser.station || 'default'}`;
-    const savedData = localStorage.getItem(key);
-    if (savedData) {
-        try {
-            const parsed = JSON.parse(savedData);
-            const now = Date.now();
-            ctrlTransferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 86400000);
-            saveCtrlListToLocal();
-        } catch(e) { ctrlTransferList = []; }
-    } else { ctrlTransferList = []; }
-    updateCtrlListUI();
-}
-
-function updateCtrlListUI() {
-    const listDiv = document.getElementById('ctrlRecentList');
-    if(document.getElementById('ctrlQueueCount')) document.getElementById('ctrlQueueCount').innerText = `${ctrlTransferList.length} 筆`;
-    
-    if(!listDiv) return;
-    if(ctrlTransferList.length === 0) {
-        listDiv.innerHTML = '<div class="text-center text-muted mt-5 py-4">今日尚無管制藥操作紀錄</div>'; return;
-    }
-
-    let html = '';
-    ctrlTransferList.forEach(item => {
-        const isQtyNegative = item.quantity < 0;
-        const badgeColor = isQtyNegative ? 'bg-danger' : 'bg-success';
-        const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
-        
-        html += `
-            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${isQtyNegative ? 'border-danger':'border-success'}" id="ctrl-card-${item.id}">
-                <div class="d-flex justify-content-between align-items-start mb-1">
-                    <div>
-                        <span class="badge ${badgeColor} me-2">${item.actionType}</span>
-                        <strong class="text-dark">${item.drugCode}</strong>
-                        ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
-                    </div>
-                    <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
-                </div>
-                <div class="fw-bold text-dark small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
-                ${item.patientNo && !item.patientNo.includes('手動') ? `<div class="small text-muted" style="font-size:0.75rem;">🏥 病歷號: ${item.patientNo}</div>` : ''}
-                ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
-                    <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
-                    <strong class="fs-5 ${isQtyNegative ? 'text-danger':'text-success'}">${qtyDisplay} 支</strong>
-                </div>
-            </div>`;
-    });
-    listDiv.innerHTML = html;
 }
