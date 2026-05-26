@@ -7,7 +7,7 @@
  */
 
 // ✨ 1. 明確宣告專屬 API 網址，徹底消滅 404
-const CTRL_API_URL = "https://你的_POST_API_網址請貼在這裡..."; 
+const CTRL_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
 // ✨ 2. 建立背景上傳安全計數器
 let pendingUploads = 0; 
