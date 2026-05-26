@@ -307,30 +307,34 @@ async function processCtrlEntry(data) {
     updateCtrlListUI();
     document.getElementById('ctrlRemarkInput').value = '';
 
-    const overlay = document.getElementById('ctrlLoadingOverlay');
+const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    fetch(API_URL, {
+    pendingUploads++; // 🔒 上傳開始，安全鎖 +1
+
+    fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     })
     .then(async (response) => {
-        if (!response.ok) throw new Error();
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const result = await response.json();
         const target = ctrlTransferList.find(i => i.id === payload.id);
         if (target && result.newId) {
             target.id = result.newId.toString();
             saveCtrlListToLocal();
-            updateCtrlListUI();
+            updateCtrlListUI(); // 確保拿到真 ID 後畫面重繪
         }
     })
     .catch((error) => {
         console.error("❌ 管藥拋轉失敗", error);
+        alert("⚠️ 雲端同步失敗！請檢查網路，此筆資料暫存於本機。");
         const card = document.getElementById(`ctrl-card-${payload.id}`);
         if(card) card.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
     })
     .finally(() => {
+        pendingUploads--; // 🔓 上傳結束，安全鎖 -1
         if (overlay) overlay.classList.add('hidden');
     });
 
@@ -366,18 +370,20 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
+    pendingUploads++; // 🔒 安全鎖 +1
+
     try {
         const payload = {
-            action: "updateCtrl", // 🤖 後端需要處理此分支
+            action: "updateCtrl", 
             itemId: parsedId,
             station: target.station,
             drugCode: target.drugCode,
-            quantity: newFinalQty, // 新數量
-            operatorId: window.currentUser.empId, // 記錄是誰改的
+            quantity: newFinalQty,
+            operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(API_URL, {
+        const response = await fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -385,15 +391,15 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
         
         if (!response.ok) throw new Error();
         
-        // 更新地端記憶
         target.quantity = newFinalQty;
         target.timestamp = new Date().toLocaleString() + " (已修改)";
         saveCtrlListToLocal();
         updateCtrlListUI();
-        alert("✅ 管藥庫存與紀錄修改成功！");
+        alert("✅ 庫存修改成功！");
     } catch (e) {
         alert("❌ 修改失敗，請檢查網路連線。");
     } finally {
+        pendingUploads--; // 🔓 安全鎖 -1
         if (overlay) overlay.classList.add('hidden');
     }
 };
@@ -414,19 +420,21 @@ window.voidCtrlItem = async function(id) {
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
+    pendingUploads++; // 🔒 安全鎖 +1
+
     try {
         const payload = {
-            action: "voidCtrl", // 🤖 後端需要處理此分支
+            action: "voidCtrl", 
             itemId: parsedId,
             station: target.station,
             drugCode: target.drugCode,
-            quantity: target.quantity, // 用於扣回庫存的基準
+            quantity: target.quantity, 
             voidReason: voidReason,
-            operatorId: window.currentUser.empId, // 蓋上作廢人戳記
+            operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(API_URL, {
+        const response = await fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -434,14 +442,14 @@ window.voidCtrlItem = async function(id) {
         
         if (!response.ok) throw new Error();
         
-        // 地端同步更新：從前台清單移除（或標示作廢，此處依據調撥習慣直接剔除）
         ctrlTransferList = ctrlTransferList.filter(item => item.id !== id);
         saveCtrlListToLocal();
         updateCtrlListUI();
-        alert("✅ 該管藥紀錄已成功作廢，庫存已自動回沖！");
+        alert("✅ 紀錄已作廢，庫存自動回沖！");
     } catch (e) {
         alert("❌ 作廢失敗，請檢查網路連線。");
     } finally {
+        pendingUploads--; // 🔓 安全鎖 -1
         if (overlay) overlay.classList.add('hidden');
     }
 };
