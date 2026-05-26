@@ -179,7 +179,8 @@ function switchTab(tabName) {
     const activeTab = document.querySelector(`.academic-tabs .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    ['transfer', 'receive', 'storage', 'history'].forEach(t => {
+    // ✨ 修正：把 'ctrl-drug' 加入隱藏名單中
+    ['transfer', 'ctrl-drug', 'receive', 'storage', 'history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
     });
