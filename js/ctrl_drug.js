@@ -169,8 +169,8 @@ async function processCtrlEntry(data) {
         actionType: data.actionType,
         patientNo: data.patientNo || "",
         prescribeNo: data.prescribeNo || "",
-        operatorId: window.currentUser.empId,
-        operatorName: window.currentUser.name,
+        operatorId: window.ctrlCurrentOperator.empId,
+        operatorName: window.ctrlCurrentOperator.name,
         remark: document.getElementById('ctrlRemarkInput').value.trim()
     };
 
