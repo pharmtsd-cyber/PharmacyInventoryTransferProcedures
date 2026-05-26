@@ -1,61 +1,78 @@
-/* 全局設定 */
+/* ================= CSS 動態色彩變數 ================= */
+:root {
+    --theme-primary: #003366; /* 預設：海軍藍 */
+    --theme-hover: #00264d;
+}
+
+/* 門診藥局：海軍藍 */
+body.theme-opd { --theme-primary: #003366; --theme-hover: #00264d; }
+/* 急診藥局：海軍綠 */
+body.theme-er { --theme-primary: #0f5132; --theme-hover: #0a3622; }
+/* 住院藥局：海軍紅 */
+body.theme-ipd { --theme-primary: #842029; --theme-hover: #5c161d; }
+/* 藥庫/管理端：沉穩深灰 */
+body.theme-store { --theme-primary: #343a40; --theme-hover: #212529; }
+
+/* ================= 全局設定 ================= */
 body {
-    background-color: #f4f6f9; /* 乾淨的冷灰白底 */
+    background-color: #f4f6f9;
     font-family: "Helvetica Neue", Helvetica, "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
     color: #333;
+    transition: background-color 0.3s ease; /* 切換主題時的滑順動畫 */
 }
 .hidden { display: none !important; }
 .tracking-wide { letter-spacing: 1px; }
 
 /* 頂部 Header */
 .academic-header {
-    background-color: #003366; /* 醫療系統經典海軍藍 */
+    background-color: var(--theme-primary);
     color: #ffffff;
     padding: 15px 0;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.3s ease;
 }
 
 /* 卡片與容器 */
 .wrapper-container { max-width: 1300px; }
 .academic-card {
-    border-radius: 4px; /* 降低圓角，增加嚴肅感 */
+    border-radius: 4px;
     border: 1px solid #ced4da;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     background-color: #ffffff;
 }
 .academic-title {
-    color: #003366;
+    color: var(--theme-primary);
     font-weight: bold;
 }
 
 /* 按鈕風格 */
 .academic-btn-primary {
-    background-color: #004080;
+    background-color: var(--theme-primary);
     color: white;
     border: none;
     border-radius: 4px;
 }
-.academic-btn-primary:hover { background-color: #00264d; color: white;}
+.academic-btn-primary:hover { background-color: var(--theme-hover); color: white;}
 
 .academic-hub-btn {
     height: 100px;
     font-size: 1.2rem;
     background-color: #ffffff;
-    border: 2px solid #003366;
-    color: #003366;
+    border: 2px solid var(--theme-primary);
+    color: var(--theme-primary);
     border-radius: 8px;
     transition: all 0.2s ease-in-out;
 }
 .academic-hub-btn:hover {
-    background-color: #003366;
+    background-color: var(--theme-primary);
     color: #ffffff;
 }
 
 /* 頁籤風格 */
-.academic-tabs { border-bottom: 2px solid #003366; }
+.academic-tabs { border-bottom: 2px solid var(--theme-primary); }
 .academic-tabs .nav-link { color: #555; border: none; font-weight: bold; }
 .academic-tabs .nav-link.active {
-    background-color: #003366;
+    background-color: var(--theme-primary);
     color: #fff;
     border-radius: 4px 4px 0 0;
 }
@@ -63,14 +80,19 @@ body {
 /* 預覽卡片與貯列卡片 */
 .academic-preview-card {
     background-color: #f8f9fa;
-    border-left: 5px solid #004080; /* 左側粗邊框標示重點 */
+    border-left: 5px solid var(--theme-primary);
 }
 .queue-card {
-    border-left: 4px solid #198754;
+    border-left: 4px solid var(--theme-primary);
     background-color: #ffffff;
     border-radius: 4px;
-    border-top: 1px solid #dee2e6; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
+    border: 1px solid #dee2e6;
+    border-left-width: 4px;
 }
+
+/* 動態共用字體與背景色 */
+.text-theme { color: var(--theme-primary) !important; }
+.bg-theme { background-color: var(--theme-primary) !important; color: white; }
 
 /* 模糊搜尋下拉選單 */
 .autocomplete-items {
