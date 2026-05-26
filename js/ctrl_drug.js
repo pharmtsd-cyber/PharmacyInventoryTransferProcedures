@@ -530,3 +530,48 @@ function handleCtrlOperatorEnter(e) {
         }
     }
 }
+
+// ==========================================
+// 9. 本地硬碟暫存與游標輔助機制 (補回)
+// ==========================================
+
+function saveCtrlListToLocal() {
+    if (!window.currentUser || !window.currentUser.station) return;
+    const key = `ctrlData_${window.currentUser.station}`;
+    localStorage.setItem(key, JSON.stringify(ctrlTransferList));
+}
+
+function loadCtrlListFromLocal() {
+    const station = (window.currentUser && window.currentUser.station) ? window.currentUser.station : 'default';
+    const key = `ctrlData_${station}`;
+    const savedData = localStorage.getItem(key);
+    
+    if (savedData) {
+        try {
+            const parsed = JSON.parse(savedData);
+            const now = Date.now();
+            // 與調撥系統對齊：保留 48 小時內的地端紀錄 (172800000 毫秒)
+            ctrlTransferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 172800000);
+            saveCtrlListToLocal();
+        } catch(e) { 
+            ctrlTransferList = []; 
+        }
+    } else { 
+        ctrlTransferList = []; 
+    }
+    
+    if (typeof updateCtrlListUI === 'function') {
+        updateCtrlListUI();
+    }
+}
+
+function focusCorrectCtrlInput() {
+    const modeBarcode = document.getElementById('ctrlModeBarcode');
+    if (modeBarcode && modeBarcode.checked) {
+        const barcodeInput = document.getElementById('ctrlBarcodeInput');
+        if (barcodeInput) barcodeInput.focus();
+    } else {
+        const searchInput = document.getElementById('ctrlDrugSearchInput');
+        if (searchInput) searchInput.focus();
+    }
+}
