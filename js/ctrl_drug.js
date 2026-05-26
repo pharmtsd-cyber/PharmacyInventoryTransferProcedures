@@ -6,6 +6,17 @@
  * ====================================================================
  */
 
+// ✨ 1. 明確宣告專屬 API 網址，徹底消滅 404
+const CTRL_API_URL = "https://你的_POST_API_網址請貼在這裡..."; 
+
+// ✨ 2. 建立背景上傳安全計數器
+let pendingUploads = 0; 
+
+let ctrlTransferList = [];
+window.ctrlCurrentOperator = {}; 
+let tempManualCtrlDrug = null;
+let ctrlTimeFilter = 'today';
+
 let ctrlTransferList = [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
@@ -17,6 +28,14 @@ let ctrlTimeFilter = 'today'; // ✨ 紀錄目前時間過濾狀態 ('today' 或
 document.addEventListener('DOMContentLoaded', () => {
     loadCtrlListFromLocal();
 
+    // ✨ 3. 網頁關閉防護網：如果有資料還在飛，強制跳出警告！
+    window.addEventListener('beforeunload', function (e) {
+        if (pendingUploads > 0) {
+            e.preventDefault();
+            e.returnValue = '⚠️ 警告：目前還有管藥紀錄正在背景同步至雲端！現在關閉網頁可能會導致帳目遺失。請稍候幾秒。';
+        }
+    });
+    
     // 模式切換 (條碼/手動)
     const ctrlModeBarcode = document.getElementById('ctrlModeBarcode');
     if (ctrlModeBarcode) ctrlModeBarcode.addEventListener('change', toggleCtrlInputMode);
