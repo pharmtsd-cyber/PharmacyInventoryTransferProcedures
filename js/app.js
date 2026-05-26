@@ -148,6 +148,11 @@ function handleLogin() {
         window.initOperatorAndDept();
     }
 
+    // ✨ 新增：完美銜接！觸發管制藥專屬的跨檔案初始化函數
+    if(typeof window.initCtrlDrugSection === 'function') {
+        window.initCtrlDrugSection();
+    }
+
     // 分流畫面
     if(isSpecial) {
         document.getElementById('hubUserName').innerText = window.currentUser.name;
