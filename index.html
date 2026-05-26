@@ -43,16 +43,19 @@
         <button class="btn academic-btn-primary btn-lg w-100 fw-bold" id="loginBtn">登入驗證</button>
     </div>
 
-    <div id="hubSection" class="hidden mx-auto" style="max-width: 800px;">
+    <div id="hubSection" class="hidden mx-auto" style="max-width: 900px;">
         <h5 class="mb-4 text-center academic-title">歡迎登入，<span id="hubUserName"></span>！請選擇作業項目：</h5>
-        <div class="row g-4">
-            <div class="col-md-4">
+        <div class="row g-3">
+            <div class="col-md-3">
                 <button class="btn academic-hub-btn w-100 shadow-sm" data-target="transfer">📦<br>進入調撥作業</button>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <button class="btn academic-hub-btn w-100 shadow-sm text-danger border-danger" data-target="ctrl-drug">💊<br>1-3級管藥作業</button>
+            </div>
+            <div class="col-md-3">
                 <button class="btn academic-hub-btn w-100 shadow-sm" data-target="receive">🔔<br>接收通知作業</button>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <button class="btn academic-hub-btn w-100 shadow-sm" data-target="storage">💻<br>藥庫嫁接作業</button>
             </div>
         </div>
@@ -62,6 +65,9 @@
         
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
+            
+            <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
+            
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
             <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥庫SAP作業</a></li>
             <li class="nav-item"><a class="nav-link" data-tab="history" href="#">歷史查詢</a></li>
@@ -152,6 +158,55 @@
                     
                     <div id="recentList" class="flex-grow-1" style="max-height: 600px; overflow-y: auto; padding-right: 5px;">
                         <div class="text-center text-muted mt-5" id="emptyQueueMsg">目前無資料</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-ctrl-drug" class="row g-4 hidden">
+            <div class="col-lg-7">
+                <div class="card academic-card p-4 h-100 border-danger border-2">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h5 class="text-danger fw-bold mb-0">💊 一到三級管制藥作業</h5>
+                        <span class="badge bg-danger fs-6" id="ctrlStationDisplay">📍 載入中...</span>
+                    </div>
+
+                    <div class="mb-3 p-3 bg-light border rounded">
+                        <label class="form-label fw-bold text-dark mb-2">📋 選擇作業項目：</label>
+                        <select class="form-select form-select-lg border-danger shadow-sm" id="ctrlActionType">
+                            <option value="一般處方調劑" data-sign="-1">一般處方調劑 (扣帳)</option>
+                            <option value="病房常備領用" data-sign="-1">病房常備領用 (扣帳)</option>
+                            <option value="住院退藥" data-sign="1">住院退藥 (入帳)</option>
+                            <option value="毀損報銷" data-sign="-1">毀損報銷 (扣帳)</option>
+                            <option value="盤盈虧調整" data-sign="1">盤盈虧調整 (請備註)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row g-2 mb-3 align-items-center">
+                        <div class="col-auto"><label class="form-label fw-bold text-secondary small mb-0">操作藥師：</label></div>
+                        <div class="col-auto"><strong id="ctrlOperatorDisplay" class="text-primary fs-5"></strong></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small mb-1">備註說明 (退藥/報銷必填)</label>
+                        <input type="text" class="form-control border-secondary" id="ctrlRemarkInput" placeholder="填寫病歷號、退藥原因或破瓶情況...">
+                    </div>
+
+                    <div id="ctrlBarcodeSection" class="mb-3 position-relative">
+                        <label class="form-label fw-bold text-danger">請刷入管藥條碼：</label>
+                        <input type="text" class="form-control form-control-lg border-danger shadow-sm" id="ctrlBarcodeInput" placeholder="游標置於此，刷入條碼將進行嚴格核對..." autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card academic-card p-4 h-100 bg-light border-danger">
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-3">
+                        <h5 class="text-danger fw-bold mb-0">今日管藥操作紀錄</h5>
+                        <span class="badge bg-danger fs-6" id="ctrlQueueCount">0 筆</span>
+                    </div>
+                    <div id="ctrlRecentList" class="flex-grow-1" style="max-height: 600px; overflow-y: auto;">
+                        <div class="text-center text-muted mt-5">目前無資料</div>
                     </div>
                 </div>
             </div>
