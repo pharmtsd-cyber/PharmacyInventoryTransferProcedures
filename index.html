@@ -190,16 +190,34 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-secondary small mb-1">備註說明 (退藥/報銷必填)</label>
+                        <label class="form-label fw-bold text-secondary small mb-1">備註說明 (退藥/報銷/盤點必填)</label>
                         <input type="text" class="form-control border-secondary" id="ctrlRemarkInput" placeholder="填寫病歷號、退藥原因或破瓶情況...">
                     </div>
 
-                    <div id="ctrlBarcodeSection" class="mb-3 position-relative">
-                        <label class="form-label fw-bold text-danger">請刷入管藥條碼：</label>
-                        <input type="text" class="form-control form-control-lg border-danger shadow-sm" id="ctrlBarcodeInput" placeholder="游標置於此，刷入條碼將進行嚴格核對..." autocomplete="off">
+                    <div class="btn-group w-100 mb-4 rounded-0">
+                        <input type="radio" class="btn-check" name="ctrlInputMode" id="ctrlModeBarcode" checked>
+                        <label class="btn btn-outline-danger" for="ctrlModeBarcode">條碼刷入</label>
+                        <input type="radio" class="btn-check" name="ctrlInputMode" id="ctrlModeManual">
+                        <label class="btn btn-outline-danger" for="ctrlModeManual">手動搜尋</label>
                     </div>
-                </div>
-            </div>
+
+                    <div id="ctrlBarcodeSection" class="mb-3 position-relative">
+                        <input type="text" class="form-control form-control-lg border-danger shadow-sm" id="ctrlBarcodeInput" placeholder="游標置於此，刷入管藥條碼自動建檔..." autocomplete="off">
+                        <div id="ctrlLoadingOverlay" class="hidden position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style="z-index: 10;">
+                            <span class="spinner-border spinner-border-sm text-danger me-2"></span><span class="fw-bold text-danger">寫入管藥庫存中...</span>
+                        </div>
+                    </div>
+
+                    <div id="ctrlManualSection" class="mb-3 hidden position-relative">
+                        <input type="text" class="form-control form-control-lg border-danger" id="ctrlDrugSearchInput" placeholder="輸入管藥代碼、藥名或 SAP 碼搜尋..." autocomplete="off">
+                        <div id="ctrl-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050;"></div>
+                        <div id="ctrlManualQtySection" class="mt-3 row g-2 hidden">
+                            <div class="col-8"><input type="text" class="form-control bg-light border-secondary" id="ctrlManualSelectedDrug" readonly></div>
+                            <div class="col-4">
+                                <input type="number" class="form-control border-danger shadow-sm" id="ctrlManualQtyInput" placeholder="數量(Enter建檔)" min="1">
+                            </div>
+                        </div>
+                    </div>
 
             <div class="col-lg-5">
                 <div class="card academic-card p-4 h-100 bg-light border-danger">
