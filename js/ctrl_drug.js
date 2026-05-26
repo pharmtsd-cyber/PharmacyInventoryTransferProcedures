@@ -1,59 +1,121 @@
-/**
- * ====================================================================
- * 💊 一到三級管制藥作業專屬獨立模組 (js/ctrl_drug.js)
- * 適用於：門診藥局(藍)、急診藥局(紅)、住院藥局(綠) 尖峰高頻操作
- * ====================================================================
- */
-
 // 全域變數與暫存貯列
 let ctrlTransferList = [];
-let tempManualCtrlDrug = null;
+window.ctrlCurrentOperator = {}; // ✨ 專屬管藥的操作藥師變數
 
-// ==========================================
-// 1. DOM 載入完成與事件綁定
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    // 網頁載入時，先從 Local Storage 讀取今日該工作站的管藥紀錄
     loadCtrlListFromLocal();
 
-    // 綁定管藥專屬的條碼刷入事件
     const ctrlBarcode = document.getElementById('ctrlBarcodeInput');
     if (ctrlBarcode) ctrlBarcode.addEventListener('keypress', handleCtrlBarcodeScan);
 
-    // 備註欄位防呆：當選擇退藥或毀損時，提示藥師輸入理由
     const ctrlAction = document.getElementById('ctrlActionType');
     if (ctrlAction) {
         ctrlAction.addEventListener('change', () => {
             const remarkInput = document.getElementById('ctrlRemarkInput');
-            if (ctrlAction.value === '住院退藥') {
-                remarkInput.placeholder = "🚨 必須填寫：病歷號、原處方號及退藥原因！";
-            } else if (ctrlAction.value === '毀損報銷') {
-                remarkInput.placeholder = "🚨 必須填寫：破損原因、護理師姓名、見證人！";
+            if (ctrlAction.value.includes('退藥') || ctrlAction.value.includes('報銷') || ctrlAction.value.includes('盤盈虧')) {
+                remarkInput.placeholder = "🚨 必須填寫：病歷號、原因或見證人！";
             } else {
-                remarkInput.placeholder = "填寫病歷號、備註說明或異動原因...";
+                remarkInput.placeholder = "填寫病歷號或備註說明...";
             }
             if(ctrlBarcode) ctrlBarcode.focus();
         });
     }
+
+    // ✨ 綁定操作藥師搜尋事件
+    const ctrlOpSearch = document.getElementById('ctrlOperatorSearchInput');
+    if (ctrlOpSearch) {
+        ctrlOpSearch.addEventListener('input', handleCtrlOperatorSearch);
+        ctrlOpSearch.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = e.target.value.trim().toUpperCase();
+                if (!val || !window.realUserDB) return;
+                const user = window.realUserDB.find(u => u.empId.toUpperCase() === val || u.name === val);
+                if (user) {
+                    setCtrlOperator(user.empId, user.name);
+                    document.getElementById('ctrl-operator-autocomplete-list').innerHTML = ''; 
+                    if(ctrlBarcode) ctrlBarcode.focus();
+                } else {
+                    alert("❌ 找不到此員編或姓名"); e.target.select();
+                }
+            }
+        });
+    }
+
+    const resetCtrlOpBtn = document.getElementById('ctrlResetOperatorBtn');
+    if (resetCtrlOpBtn) {
+        resetCtrlOpBtn.addEventListener('click', () => {
+            if (window.currentUser) setCtrlOperator(window.currentUser.empId, window.currentUser.name);
+            if (ctrlOpSearch) { ctrlOpSearch.value = ''; ctrlOpSearch.focus(); }
+        });
+    }
 });
 
-// ==========================================
-// 2. 登入連動初始化 (由 app.js 在登入成功後跨檔呼叫)
-// ==========================================
 window.initCtrlDrugSection = function() {
     if (!window.currentUser || !window.currentUser.station) return;
-
-    // 1. 自動鎖定並顯示目前的物理工作站位置
+    
+    // 1. 顯示工作站
     const stationDisplay = document.getElementById('ctrlStationDisplay');
     if (stationDisplay) stationDisplay.innerText = `📍 目前工作站：${window.currentUser.station}`;
 
-    // 2. 自動帶入當下登入的操作藥師
-    const opDisplay = document.getElementById('ctrlOperatorDisplay');
-    if (opDisplay) opDisplay.innerText = `${window.currentUser.name} (${window.currentUser.empId})`;
+    // 2. ✨ 從系統參數資料庫，動態篩選並組裝該單位的專屬選單
+    const actionSelect = document.getElementById('ctrlActionType');
+    if (actionSelect && window.sysParamsDB) {
+        actionSelect.innerHTML = ''; // 清空舊選項
+        
+        // 核心邏輯：找「管藥作業項目」且單位符合當前機台（或全院通用）
+        const stationOptions = window.sysParamsDB.filter(p => 
+            p.title === '管藥作業項目' && 
+            (p.station === window.currentUser.station || p.station === '全院通用')
+        );
 
-    // 3. 根據鎖定的單位，自動過濾並載入該單位的單機暫存
+        if (stationOptions.length === 0) {
+            actionSelect.innerHTML = '<option value="">請先至後台維護作業項目</option>';
+        } else {
+            stationOptions.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt.itemName; // 寫入資料庫的名稱
+                el.dataset.sign = parseInt(opt.itemValue, 10) || -1; // 將資料庫的 itemValue 轉為正負號運算值
+                el.innerText = opt.itemName; // 前端顯示的字
+                actionSelect.appendChild(el);
+            });
+        }
+    }
+
+    // 3. 預設操作藥師為登入者
+    setCtrlOperator(window.currentUser.empId, window.currentUser.name);
+
     loadCtrlListFromLocal();
 };
+
+// ✨ 設定管藥專屬操作藥師
+function setCtrlOperator(id, name) {
+    window.ctrlCurrentOperator = { empId: id, name: name };
+    const searchInput = document.getElementById('ctrlOperatorSearchInput');
+    if (searchInput) searchInput.value = '';
+    const display = document.getElementById('ctrlOperatorDisplay');
+    if (display) display.innerText = `${name} (${id})`;
+}
+
+// ✨ 管藥專屬的模糊搜尋 UI
+function handleCtrlOperatorSearch(e) {
+    const val = e.target.value.toUpperCase();
+    const list = document.getElementById('ctrl-operator-autocomplete-list');
+    list.innerHTML = '';
+    if (!val || !window.realUserDB) return; 
+
+    const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val)).slice(0, 10);
+    matches.forEach(user => {
+        const item = document.createElement('div');
+        item.innerHTML = `<strong>${user.empId}</strong> - ${user.name}`;
+        item.addEventListener('click', () => {
+            setCtrlOperator(user.empId, user.name);
+            list.innerHTML = '';
+            document.getElementById('ctrlBarcodeInput').focus(); 
+        });
+        list.appendChild(item);
+    });
+}
 
 // ==========================================
 // 3. 本地硬碟單機暫存機制 (Local Storage)
