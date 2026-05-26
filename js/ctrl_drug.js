@@ -303,6 +303,7 @@ async function processCtrlEntry(data) {
         if (target && result.newId) {
             target.id = result.newId.toString();
             saveCtrlListToLocal();
+            updateCtrlListUI();
         }
     })
     .catch((error) => {
