@@ -1,7 +1,6 @@
 // ==========================================
 // 1. 全域變數與 API 網址
 // ==========================================
-// 👉 請將下方引號內的網址替換為你剛才建立的「讀取藥師名冊 API」網址
 const GET_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/222b3b63e0244b6ea7e8f1768594ab45/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nT2eDEqXKh7eeKPmywbAvbPE_WWLXxX98Hm93OCvCio";
 
 window.realUserDB = []; 
@@ -10,10 +9,22 @@ window.currentUser = {};
 window.currentOperator = {}; 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 網頁載入時，透過不同的 action 參數平行抓取藥師與藥品主檔
     fetchSystemData();
 
-    // 綁定全域事件 (登入、登出等邏輯維持不變)
+    // ✨ 網頁載入時，自動讀取上次記憶的工作站單位，並套用對應主題
+    const savedStation = localStorage.getItem('workStation') || '門診藥局';
+    const stationSelect = document.getElementById('stationSelect');
+    if (stationSelect) {
+        stationSelect.value = savedStation;
+        applyTheme(savedStation);
+        
+        // 當下拉選單改變時，立刻存入硬碟記憶並變色
+        stationSelect.addEventListener('change', (e) => {
+            localStorage.setItem('workStation', e.target.value);
+            applyTheme(e.target.value);
+        });
+    }
+
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     
@@ -42,8 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ✨ 主題色彩切換引擎
+function applyTheme(station) {
+    document.body.className = ''; // 清除舊主題
+    if (station.includes('門診')) document.body.classList.add('theme-opd');
+    else if (station.includes('急診')) document.body.classList.add('theme-er');
+    else if (station.includes('住院')) document.body.classList.add('theme-ipd');
+    else document.body.classList.add('theme-store');
+}
+
 // ==========================================
-// 2. 系統初始化 (利用單一網址 + 不同 action 參數平行載入)
+// 2. 系統初始化 (平行載入)
 // ==========================================
 async function fetchSystemData() {
     const loginBtn = document.getElementById('loginBtn');
@@ -53,7 +73,6 @@ async function fetchSystemData() {
     }
 
     try {
-        // ✨ 用同一個 GET_API_URL 網址，後面利用 &action= 分流
         const [userRes, drugRes] = await Promise.all([
             fetch(GET_API_URL + "&action=getUsers", { method: 'GET' }),
             fetch(GET_API_URL + "&action=getDrugs", { method: 'GET' })
@@ -86,7 +105,6 @@ function handleLogin() {
     const empId = empIdInput.value.trim().toUpperCase();
     if (!empId) { alert("請輸入員工編號"); return; }
 
-    // 在真實的資料庫中尋找該員編
     const user = window.realUserDB.find(u => u.empId === empId);
     
     if(!user) { 
@@ -95,14 +113,17 @@ function handleLogin() {
         return; 
     }
 
-    // 透過 API 回傳的布林值，直接精準判斷是否擁有特殊權限
     const isSpecial = (user.isSupervisor === true || user.isSmartMgmt === true);
+    
+    // ✨ 抓取當下介面選擇的「物理工作站」並綁定在使用者身上
+    const station = document.getElementById('stationSelect').value;
+    localStorage.setItem('workStation', station); // 二次確認寫入記憶
 
     window.currentUser = {
         empId: user.empId,
         name: user.name,
-        // 因為 API 沒傳 dept，這裡直接給定一個預設字串，或依需求留空
         dept: user.isSmartMgmt ? "智能運管組" : "藥學部", 
+        station: station, // 綁定物理機台位置
         isSpecial: isSpecial
     };
     
@@ -110,6 +131,8 @@ function handleLogin() {
     document.getElementById('userNameDisplay').innerText = window.currentUser.name;
     document.getElementById('userDeptDisplay').innerText = window.currentUser.dept;
     document.getElementById('userRoleBadge').innerText = isSpecial ? "管理員" : "藥師";
+    document.getElementById('userStationBadge').innerText = `📍 ${station}`; // 顯示機台位置
+    
     document.getElementById('headerUserInfo').classList.remove('hidden');
     document.getElementById('loginSection').classList.add('hidden');
 
