@@ -6,6 +6,7 @@ const GET_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environmen
 window.realUserDB = []; 
 window.realDrugDB = []; 
 window.ctrlDrugDB = [];
+window.sysParamsDB = [];
 window.currentUser = {};
 window.currentOperator = {}; 
 
@@ -74,27 +75,31 @@ async function fetchSystemData() {
     }
 
     try {
-        // ✨ 一次平行發送三個請求，極大化載入速度
-        const [userRes, drugRes, ctrlDrugRes] = await Promise.all([
+        // ✨ 一次平行發送 4 個請求
+        const [userRes, drugRes, ctrlDrugRes, sysParamsRes] = await Promise.all([
             fetch(GET_API_URL + "&action=getUsers", { method: 'GET' }),
             fetch(GET_API_URL + "&action=getDrugs", { method: 'GET' }),
-            fetch(GET_API_URL + "&action=getCtrlDrugs", { method: 'GET' })
+            fetch(GET_API_URL + "&action=getCtrlDrugs", { method: 'GET' }),
+            fetch(GET_API_URL + "&action=getSysParams", { method: 'GET' }) // ✨ 新增這行
         ]);
 
-        if(!userRes.ok || !drugRes.ok || !ctrlDrugRes.ok) throw new Error("主檔 API 連線失敗");
+        if(!userRes.ok || !drugRes.ok || !ctrlDrugRes.ok || !sysParamsRes.ok) throw new Error("主檔 API 連線失敗");
         
         window.realUserDB = await userRes.json();
         window.realDrugDB = await drugRes.json();
-        window.ctrlDrugDB = await ctrlDrugRes.json(); // ✨ 存入全域變數
+        window.ctrlDrugDB = await ctrlDrugRes.json(); 
+        window.sysParamsDB = await sysParamsRes.json(); // ✨ 存入系統參數
         
-        // 可選：只保留狀態為「啟用」的管制藥
+        // 依照排序權重由小到大排好
+        window.sysParamsDB.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        
         window.ctrlDrugDB = window.ctrlDrugDB.filter(d => d.status === '啟用');
         
         if(loginBtn) {
             loginBtn.disabled = false;
             loginBtn.innerText = "登入驗證";
         }
-        console.log(`✅ 系統載入成功：藥師 ${window.realUserDB.length} 筆，一般藥品 ${window.realDrugDB.length} 筆，管制藥品 ${window.ctrlDrugDB.length} 筆`);
+        console.log(`✅ 系統載入成功，包含系統參數 ${window.sysParamsDB.length} 筆`);
     } catch (error) {
         alert("系統資料載入失敗，請檢查網路或 GET API 設定！");
         console.error(error);
