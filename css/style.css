@@ -68,13 +68,19 @@ body {
     color: #ffffff;
 }
 
-/* 頁籤風格 */
+/* 頁籤風格 (style.css) */
 .academic-tabs { border-bottom: 2px solid var(--theme-primary); }
 .academic-tabs .nav-link { color: #555; border: none; font-weight: bold; }
 .academic-tabs .nav-link.active {
     background-color: var(--theme-primary);
     color: #fff;
     border-radius: 4px 4px 0 0;
+}
+/* ✨ 新增：管藥頁籤被啟動時的專屬紅底白字 */
+.academic-tabs .nav-link[data-tab="ctrl-drug"].active {
+    background-color: #dc3545 !important; /* Bootstrap danger red */
+    color: #ffffff !important;
+    border-color: #dc3545 !important;
 }
 
 /* 預覽卡片與貯列卡片 */
