@@ -446,10 +446,22 @@ window.voidCtrlItem = async function(id) {
             body: JSON.stringify(payload)
         });
         
-        if (!response.ok) throw new Error();
-
-        const result = await response.json();
+        // 1. 檢查 HTTP 狀態
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`API 狀態異常: ${response.status} - ${errText}`);
+        }
         
+        // 2. ✨ 防彈拆包裹：先拿純文字，再嘗試轉 JSON
+        const responseText = await response.text();
+        let result = {};
+        try {
+            result = JSON.parse(responseText);
+        } catch (jsonErr) {
+            console.warn("⚠️ PA 回傳的 JSON 格式有瑕疵，但資料庫已執行成功。原始回傳：", responseText);
+        }
+
+        // 3. 更新畫面
         target.recordStatus = "已作廢";
         target.timestamp = new Date().toLocaleString() + " (已作廢)";
         if (result.newRemark) target.remark = result.newRemark;
@@ -458,7 +470,8 @@ window.voidCtrlItem = async function(id) {
         updateCtrlListUI();
         alert("✅ 紀錄已作廢，庫存自動回沖！");
     } catch (e) {
-        alert("❌ 作廢失敗，請檢查網路連線。");
+        console.error("❌ 捕捉到作廢錯誤細節：", e);
+        alert("❌ 作廢過程發生異常，但資料庫可能已成功。請按 F12 查看主控台確認！");
     } finally {
         pendingUploads--;
         if (overlay) overlay.classList.add('hidden');
@@ -468,9 +481,8 @@ window.voidCtrlItem = async function(id) {
 window.restoreCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
     
-    // ✨ 彈出視窗：強制作業人員填寫取消作廢的理由！
     const restoreReason = prompt("♻️ 確定要將此紀錄「取消作廢」並恢復庫存嗎？\n請輸入取消作廢的理由：");
-    if(restoreReason === null) return; // 按取消則中止
+    if(restoreReason === null) return; 
 
     const target = ctrlTransferList.find(i => i.id === id);
     if(!target) return;
@@ -487,7 +499,7 @@ window.restoreCtrlItem = async function(id) {
             station: target.station,
             drugCode: target.drugCode,
             quantity: target.quantity, 
-            voidReason: restoreReason || "無", // ✨ 將理由傳送給 Power Automate
+            voidReason: restoreReason || "無", 
             operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
@@ -498,20 +510,32 @@ window.restoreCtrlItem = async function(id) {
             body: JSON.stringify(payload)
         });
         
-        if (!response.ok) throw new Error();
-
-        const result = await response.json();
+        // 1. 檢查 HTTP 狀態
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`API 狀態異常: ${response.status} - ${errText}`);
+        }
         
+        // 2. ✨ 防彈拆包裹：先拿純文字，再嘗試轉 JSON
+        const responseText = await response.text();
+        let result = {};
+        try {
+            result = JSON.parse(responseText);
+        } catch (jsonErr) {
+            console.warn("⚠️ PA 回傳的 JSON 格式有瑕疵，但資料庫已執行成功。原始回傳：", responseText);
+        }
+        
+        // 3. 更新畫面
         target.recordStatus = "正常";
         target.timestamp = new Date().toLocaleString() + " (已復原)";
-        
         if (result.newRemark) target.remark = result.newRemark;
         
         saveCtrlListToLocal();
         updateCtrlListUI();
         alert("✅ 取消作廢成功，帳目已重新恢復！");
     } catch (e) {
-        alert("❌ 復原失敗，請檢查網路連線。");
+        console.error("❌ 捕捉到復原錯誤細節：", e);
+        alert("❌ 復原過程發生異常，但資料庫可能已成功。請按 F12 查看主控台確認！");
     } finally {
         pendingUploads--;
         if (overlay) overlay.classList.add('hidden');
