@@ -116,3 +116,11 @@ body.mode-public .academic-header {
 body.mode-public .academic-tabs .nav-link.active {
     border-top: 3px solid #fd7e14;
 }
+
+/* ✨ 管藥作業與紀錄的頁籤，被選中(active)時顯示紅底白字 */
+.academic-tabs .nav-link[data-tab="ctrl-drug"].active,
+.academic-tabs .nav-link[data-tab="ctrl-history"].active {
+    background-color: #dc3545 !important; /* Bootstrap 危險紅 */
+    color: white !important;
+    border-color: #dc3545 !important;
+}
