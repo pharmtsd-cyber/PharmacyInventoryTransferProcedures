@@ -450,7 +450,7 @@ window.voidCtrlItem = async function(id) {
         
         target.recordStatus = "已作廢";
         target.timestamp = new Date().toLocaleString() + " (已作廢)";
-        target.remark = target.remark ? target.remark + ` (作廢理由: ${voidReason})` : `作廢理由: ${voidReason}`;
+        if (result.newRemark) target.remark = result.newRemark;
 
         saveCtrlListToLocal();
         updateCtrlListUI();
@@ -501,8 +501,7 @@ window.restoreCtrlItem = async function(id) {
         target.recordStatus = "正常";
         target.timestamp = new Date().toLocaleString() + " (已復原)";
         
-        // ✨ 前端同步串接字串，讓你的「詳細」按鈕點開時能即時看到！
-        target.remark = target.remark ? target.remark + ` /取消作廢${restoreReason}/` : `/取消作廢${restoreReason}/`;
+        if (result.newRemark) target.remark = result.newRemark;
         
         saveCtrlListToLocal();
         updateCtrlListUI();
