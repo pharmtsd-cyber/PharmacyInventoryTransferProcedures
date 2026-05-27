@@ -130,6 +130,11 @@ window.initCtrlDrugSection = function() {
 
     setCtrlOperator(window.currentUser.empId, window.currentUser.name);
     loadCtrlListFromLocal();
+
+    // ✨ 加入這段：連動大表的選單與鎖定單位初始化
+    if (typeof window.initCtrlHistorySection === 'function') {
+        window.initCtrlHistorySection();
+    }
 };
 
 function toggleCtrlInputMode() {
