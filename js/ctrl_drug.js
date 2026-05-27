@@ -1,3 +1,12 @@
+/**
+ * ====================================================================
+ * 💊 一到三級管制藥作業專屬獨立模組 (js/ctrl_drug.js)
+ * 完美移植一般調撥雙模式，全面支援病歷號、領藥號與原始條碼稽核軌跡
+ * 內建今日/近兩日地端秒切開關、即時編輯數量與作廢/復原紀錄功能
+ * 支援公用機台/個人鎖定模式之智慧游標路由
+ * ====================================================================
+ */
+
 // ✨ 1. 明確宣告專屬 API 網址，徹底消滅 404
 const CTRL_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
@@ -16,7 +25,7 @@ let ctrlTimeFilter = 'today';
 document.addEventListener('DOMContentLoaded', () => {
     loadCtrlListFromLocal();
 
-    // ✨ 3. 網頁關閉防護網：如果有資料還在飛，強制跳出警告！
+    // 網頁關閉防護網：如果有資料還在飛，強制跳出警告！
     window.addEventListener('beforeunload', function (e) {
         if (pendingUploads > 0) {
             e.preventDefault();
@@ -31,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctrlModeManual = document.getElementById('ctrlModeManual');
     if (ctrlModeManual) ctrlModeManual.addEventListener('change', toggleCtrlInputMode);
 
-    // ✨ 新增：紀錄時間切換按鈕事件
+    // 紀錄時間切換按鈕事件
     const ctrlTimeToday = document.getElementById('ctrlTimeToday');
     const ctrlTimeTwoDays = document.getElementById('ctrlTimeTwoDays');
     if (ctrlTimeToday) {
@@ -71,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (resetCtrlOpBtn) {
         resetCtrlOpBtn.addEventListener('click', () => {
             if (window.currentUser) setCtrlOperator(window.currentUser.empId, window.currentUser.name);
-            if (ctrlOpSearch) { ctrlOpSearch.value = ''; ctrlOpSearch.focus(); }
+            if (ctrlOpSearch) { ctrlOpSearch.value = ''; focusCorrectCtrlInput(); }
         });
     }
 
@@ -86,12 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (list) list.innerHTML = '';
         }
     });
-
-    // ✨ 監聽：管藥全頁紀錄大表篩選按鈕
-    const ctrlHistSearchBtn = document.getElementById('ctrlHistSearchBtn');
-    if (ctrlHistSearchBtn) {
-        ctrlHistSearchBtn.addEventListener('click', updateCtrlHistoryTableUI);
-    }
 });
 
 // ==========================================
@@ -126,11 +129,6 @@ window.initCtrlDrugSection = function() {
     }
 
     setCtrlOperator(window.currentUser.empId, window.currentUser.name);
-    // ✨ 初始化全頁大表的預設搜尋日期（與地端 48 小時記憶對齊）
-    const todayIso = new Date().toISOString().split('T')[0];
-    const twoDaysAgoIso = new Date(Date.now() - 172800000).toISOString().split('T')[0];
-    if(document.getElementById('ctrlHistStartDate')) document.getElementById('ctrlHistStartDate').value = twoDaysAgoIso;
-    if(document.getElementById('ctrlHistEndDate')) document.getElementById('ctrlHistEndDate').value = todayIso;
     loadCtrlListFromLocal();
 };
 
@@ -294,7 +292,7 @@ async function processCtrlEntry(data) {
         operatorId: window.ctrlCurrentOperator.empId,
         operatorName: window.ctrlCurrentOperator.name,
         remark: remarkValue,
-        recordStatus: "正常" // 預設狀態為正常
+        recordStatus: "正常"
     };
 
     payload.id = "TEMP_" + Date.now();
@@ -306,12 +304,12 @@ async function processCtrlEntry(data) {
     updateCtrlListUI();
     document.getElementById('ctrlRemarkInput').value = '';
 
-const overlay = document.getElementById('ctrlLoadingOverlay');
+    const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    pendingUploads++; // 🔒 上傳開始，安全鎖 +1
+    pendingUploads++; 
 
-    fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
+    fetch(CTRL_API_URL, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -323,7 +321,7 @@ const overlay = document.getElementById('ctrlLoadingOverlay');
         if (target && result.newId) {
             target.id = result.newId.toString();
             saveCtrlListToLocal();
-            updateCtrlListUI(); // 確保拿到真 ID 後畫面重繪
+            updateCtrlListUI(); 
         }
     })
     .catch((error) => {
@@ -339,7 +337,10 @@ const overlay = document.getElementById('ctrlLoadingOverlay');
         // ✨ 結帳完畢後的游標路由判斷
         if (window.workMode === 'public') {
             setCtrlOperator('', ''); // 公用模式：清空藥師
-            setTimeout(() => document.getElementById('ctrlOperatorSearchInput').focus(), 100);
+            setTimeout(() => {
+                const opInput = document.getElementById('ctrlOperatorSearchInput');
+                if(opInput) opInput.focus();
+            }, 100);
         } else {
             focusCorrectCtrlInput(); // 個人模式：留在原本輸入框
         }
@@ -349,7 +350,7 @@ const overlay = document.getElementById('ctrlLoadingOverlay');
 }
 
 // ==========================================
-// 6. ✨ 核心升級：地端管藥紀錄「編輯數量」與「作廢紀錄」
+// 6. ✨ 核心升級：地端管藥紀錄「編輯數量」、「作廢」與「復原」
 // ==========================================
 window.editCtrlItem = async function(id, currentQty, actionType) {
     const parsedId = parseInt(id, 10);
@@ -357,7 +358,6 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
         alert("❌ 此資料尚未同步至雲端，暫不開放修改。請於 1 秒後重試。"); return;
     }
 
-    // 取得該筆紀錄在選單上是正數還是負數
     const absoluteQty = Math.abs(currentQty);
     const inputStr = prompt(`【修改管藥調劑數量】\n目前項目：${actionType}\n請輸入修改後的「絕對數量」（大於 0 的整數）：`, absoluteQty);
     if(inputStr === null) return;
@@ -365,7 +365,6 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     const newAbsQty = parseInt(inputStr, 10);
     if(isNaN(newAbsQty) || newAbsQty <= 0) { alert("請輸入有效的正整數！"); return; }
 
-    // 依據原本的正負號，還原具備正負值的數量
     const originalSign = currentQty >= 0 ? 1 : -1;
     const newFinalQty = newAbsQty * originalSign;
 
@@ -377,7 +376,7 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    pendingUploads++; // 🔒 安全鎖 +1
+    pendingUploads++; 
 
     try {
         const payload = {
@@ -390,7 +389,7 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
+        const response = await fetch(CTRL_API_URL, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -406,7 +405,7 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     } catch (e) {
         alert("❌ 修改失敗，請檢查網路連線。");
     } finally {
-        pendingUploads--; // 🔓 安全鎖 -1
+        pendingUploads--;
         if (overlay) overlay.classList.add('hidden');
     }
 };
@@ -427,7 +426,7 @@ window.voidCtrlItem = async function(id) {
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    pendingUploads++; // 🔒 安全鎖 +1
+    pendingUploads++; 
 
     try {
         const payload = {
@@ -441,7 +440,7 @@ window.voidCtrlItem = async function(id) {
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(CTRL_API_URL, { // 👉 改用 CTRL_API_URL
+        const response = await fetch(CTRL_API_URL, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -459,12 +458,11 @@ window.voidCtrlItem = async function(id) {
     } catch (e) {
         alert("❌ 作廢失敗，請檢查網路連線。");
     } finally {
-        pendingUploads--; // 🔓 安全鎖 -1
+        pendingUploads--;
         if (overlay) overlay.classList.add('hidden');
     }
 };
 
-// ✨ 復原作廢紀錄
 window.restoreCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if(!confirm("♻️ 確定要將此紀錄「取消作廢」並恢復庫存帳目嗎？")) return;
@@ -474,15 +472,16 @@ window.restoreCtrlItem = async function(id) {
 
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
+    
     pendingUploads++;
 
     try {
         const payload = {
-            action: "restoreCtrl", // 🤖 後端需要新增此分支
+            action: "restoreCtrl", 
             itemId: parsedId,
             station: target.station,
             drugCode: target.drugCode,
-            quantity: target.quantity, // 重新扣回原本的庫存
+            quantity: target.quantity, 
             operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
@@ -509,19 +508,18 @@ window.restoreCtrlItem = async function(id) {
 };
 
 // ==========================================
-// 7. 右側管藥操作紀錄 UI 渲染 (內建地端時間過濾與作廢狀態)
+// 7. 右側管藥操作紀錄 UI 渲染
 // ==========================================
 function updateCtrlListUI() {
     const listDiv = document.getElementById('ctrlRecentList');
     if(!listDiv) return;
 
-    // ✨ 智慧地端篩選：今日 vs 近兩日
     const todayStr = new Date().toLocaleDateString();
     const filteredList = ctrlTransferList.filter(item => {
         if (ctrlTimeFilter === 'today') {
             return new Date(item.rawTime).toLocaleDateString() === todayStr;
         }
-        return true; // 近兩日則全部呈現 (2日內)
+        return true; 
     });
 
     if(document.getElementById('ctrlQueueCount')) {
@@ -537,7 +535,6 @@ function updateCtrlListUI() {
         const isQtyNegative = item.quantity < 0;
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
         
-        // ✨ 完美整合：狀態判定與樣式 (移除了重複宣告)
         const isVoided = item.recordStatus === '已作廢';
         const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : (isQtyNegative ? 'border-danger':'border-success');
         const finalBadgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
@@ -573,7 +570,8 @@ function updateCtrlListUI() {
     });
     listDiv.innerHTML = html;
 
-    if (typeof updateCtrlHistoryTableUI === 'function') updateCtrlHistoryTableUI();
+    // ✨ 雙向連動：更新側邊欄後，一併通知全頁大表重新渲染
+    if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
 }
 
 // ==========================================
@@ -623,9 +621,8 @@ function handleCtrlOperatorEnter(e) {
 }
 
 // ==========================================
-// 9. 本地硬碟暫存與游標輔助機制 (補回)
+// 9. 本地硬碟暫存與游標輔助機制
 // ==========================================
-
 function saveCtrlListToLocal() {
     if (!window.currentUser || !window.currentUser.station) return;
     const key = `ctrlData_${window.currentUser.station}`;
@@ -641,7 +638,6 @@ function loadCtrlListFromLocal() {
         try {
             const parsed = JSON.parse(savedData);
             const now = Date.now();
-            // 與調撥系統對齊：保留 48 小時內的地端紀錄 (172800000 毫秒)
             ctrlTransferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 172800000);
             saveCtrlListToLocal();
         } catch(e) { 
@@ -651,22 +647,7 @@ function loadCtrlListFromLocal() {
         ctrlTransferList = []; 
     }
     
-    if (typeof updateCtrlListUI === 'function') {
-        updateCtrlListUI();
-    }
-
-    if (typeof updateCtrlHistoryTableUI === 'function') updateCtrlHistoryTableUI();
-}
-
-function focusCorrectCtrlInput() {
-    const modeBarcode = document.getElementById('ctrlModeBarcode');
-    if (modeBarcode && modeBarcode.checked) {
-        const barcodeInput = document.getElementById('ctrlBarcodeInput');
-        if (barcodeInput) barcodeInput.focus();
-    } else {
-        const searchInput = document.getElementById('ctrlDrugSearchInput');
-        if (searchInput) searchInput.focus();
-    }
+    updateCtrlListUI();
 }
 
 // ✨ 處理模式切換時的 UI 變動
@@ -674,7 +655,8 @@ window.applyWorkModeChange = function() {
     if (window.workMode === 'public') {
         // 切換到公用模式：清空操作藥師，游標跳至藥師輸入框
         setCtrlOperator('', '');
-        document.getElementById('ctrlOperatorSearchInput').focus();
+        const opInput = document.getElementById('ctrlOperatorSearchInput');
+        if(opInput) opInput.focus();
     } else {
         // 切換到個人模式：鎖定為登入者，游標跳至條碼
         if(window.currentUser) setCtrlOperator(window.currentUser.empId, window.currentUser.name);
@@ -682,16 +664,14 @@ window.applyWorkModeChange = function() {
     }
 };
 
-// ✨ 智慧游標路由 (改寫原本的 focusCorrectCtrlInput)
+// ✨ 智慧游標路由
 function focusCorrectCtrlInput() {
-    // 如果是公用模式，且目前沒有選擇藥師，強制對焦在藥師輸入框
     if (window.workMode === 'public' && (!window.ctrlCurrentOperator || !window.ctrlCurrentOperator.empId)) {
         const opInput = document.getElementById('ctrlOperatorSearchInput');
         if(opInput) opInput.focus();
         return;
     }
 
-    // 否則依照條碼/手動模式正常對焦
     const modeBarcode = document.getElementById('ctrlModeBarcode');
     if (modeBarcode && modeBarcode.checked) {
         const barcodeInput = document.getElementById('ctrlBarcodeInput');
@@ -700,112 +680,4 @@ function focusCorrectCtrlInput() {
         const searchInput = document.getElementById('ctrlDrugSearchInput');
         if (searchInput) searchInput.focus();
     }
-}
-
-// ==========================================
-// 10. ✨ 核心升級：管藥全頁審計紀錄大表動態過濾與渲染引擎
-// ==========================================
-function updateCtrlHistoryTableUI() {
-    const tbody = document.getElementById('ctrlHistTableBody');
-    if (!tbody) return;
-
-    // 抓取篩選面板的所有條件
-    const startDate = document.getElementById('ctrlHistStartDate').value;
-    const endDate = document.getElementById('ctrlHistEndDate').value;
-    const drugSearch = document.getElementById('ctrlHistDrugSearch').value.toUpperCase().trim();
-    const opSearch = document.getElementById('ctrlHistOpSearch').value.toUpperCase().trim();
-    const actionSelect = document.getElementById('ctrlHistActionSelect').value;
-    const statusSelect = document.getElementById('ctrlHistStatusSelect').value;
-
-    const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
-    const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
-
-    // 進行地端高階多條件交叉篩選
-    const filtered = ctrlTransferList.filter(item => {
-        // 1. 日期區間過濾
-        if (item.rawTime < startTimestamp || item.rawTime > endTimestamp) return false;
-
-        // 2. 藥品模糊搜尋 (代碼、名稱、SAP)
-        if (drugSearch) {
-            const code = (item.drugCode || "").toUpperCase();
-            const name = (item.drugName || "").toUpperCase();
-            const sap = (item.sap || "").toUpperCase();
-            if (!code.includes(drugSearch) && !name.includes(drugSearch) && !sap.includes(drugSearch)) return false;
-        }
-
-        // 3. 經辦藥師模糊搜尋 (工號、姓名)
-        if (opSearch) {
-            const uid = (item.operatorId || "").toUpperCase();
-            const uname = (item.operatorName || "").toUpperCase();
-            if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
-        }
-
-        // 4. 作業項目精準篩選
-        if (actionSelect !== '全部' && item.actionType !== actionSelect) return false;
-
-        // 5. 狀態篩選
-        const currentStatus = item.recordStatus || "正常";
-        if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
-
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-muted py-4">🔍 在此篩選區間內，查無任何符合條件的管制藥審計紀錄</td></tr>`;
-        return;
-    }
-
-    let html = '';
-    filtered.forEach(item => {
-        const isVoided = item.recordStatus === '已作廢';
-        const isQtyNegative = item.quantity < 0;
-        const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
-        
-        // 狀態與樣式路由
-        const rowClass = isVoided ? 'table-secondary text-muted opacity-75 text-decoration-line-through' : '';
-        const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
-        const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-success">正常</span>';
-
-        html += `
-            <tr class="${isVoided ? 'table-secondary text-muted' : ''}">
-                <td style="font-size: 0.8rem;" class="text-start font-monospace">
-                    <div>${item.timestamp.split(' ')[0]}</div>
-                    <div class="text-secondary">${item.timestamp.split(' ')[1] || ''}</div>
-                    <small class="text-muted d-block">ID: ${item.id}</small>
-                </td>
-                <td>
-                    <span class="badge ${isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success')}">${item.actionType}</span>
-                </td>
-                <td class="fw-bold font-monospace">${item.drugCode}</td>
-                <td class="text-start">
-                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName}</div>
-                    <small class="text-muted font-monospace">SAP: ${item.sap || '未知'}</small>
-                </td>
-                <td class="text-start font-monospace" style="font-size: 0.8rem;">
-                    <div>🏥 病歷: ${item.patientNo && !item.patientNo.includes('手動') ? item.patientNo : '<span class="text-muted">-</span>'}</div>
-                    <div>🧾 領藥: ${item.prescribeNo && !item.prescribeNo.includes('手動') ? item.prescribeNo : '<span class="text-muted">-</span>'}</div>
-                </td>
-                <td>
-                    <span class="${qtyClass} fs-5">${qtyDisplay} 支</span>
-                </td>
-                <td>
-                    <div class="fw-bold">${item.operatorName}</div>
-                    <small class="text-muted font-monospace">${item.operatorId}</small>
-                </td>
-                <td class="text-start small" style="max-width: 180px; font-size:0.8rem;" title="${item.remark || ''}">
-                    <div class="mb-1">${statusBadge}</div>
-                    <div class="text-truncate text-secondary">${item.remark || '-'}</div>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
-                        ${isVoided 
-                            ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
-                            : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
-                        }
-                    </div>
-                </td>
-            </tr>`;
-    });
-    tbody.innerHTML = html;
 }
