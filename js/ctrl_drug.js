@@ -495,7 +495,7 @@ window.restoreCtrlItem = async function(id) {
 };
 
 // ==========================================
-// 7. 右側管藥操作紀錄 UI 渲染 (內建地端時間過濾)
+// 7. 右側管藥操作紀錄 UI 渲染 (內建地端時間過濾與作廢狀態)
 // ==========================================
 function updateCtrlListUI() {
     const listDiv = document.getElementById('ctrlRecentList');
@@ -521,19 +521,19 @@ function updateCtrlListUI() {
     let html = '';
     filteredList.forEach(item => {
         const isQtyNegative = item.quantity < 0;
-        const badgeColor = isQtyNegative ? 'bg-danger' : 'bg-success';
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
         
+        // ✨ 完美整合：狀態判定與樣式 (移除了重複宣告)
         const isVoided = item.recordStatus === '已作廢';
         const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : (isQtyNegative ? 'border-danger':'border-success');
-        const badgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
+        const finalBadgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
         const statusText = isVoided ? ' (已作廢)' : '';
         
         html += `
             <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="ctrl-card-${item.id}">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <span class="badge ${badgeColor} me-2">${item.actionType}${statusText}</span>
+                        <span class="badge ${finalBadgeColor} me-2">${item.actionType}${statusText}</span>
                         <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
                         ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
                     </div>
