@@ -246,6 +246,80 @@
             </div> </div> ```
         
         <div id="content-receive" class="card academic-card p-5 hidden text-center"><h4 class="academic-title">接收通知作業區</h4></div>
+        <div id="content-ctrl-history" class="hidden">
+            <div class="card academic-card p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-danger fw-bold mb-0">📊 一到三級管制藥操作紀錄與審計大表</h5>
+                    <span class="text-muted small">💡 本表支援地端秒級交叉篩選，作廢或改量將即時雙向連動。</span>
+                </div>
+                
+                <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small text-danger">📅 開始日期</label>
+                        <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistStartDate">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small text-danger">📅 結束日期</label>
+                        <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistEndDate">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistDrugSearch" placeholder="輸入藥碼、藥名或SAP...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small text-secondary">👤 經辦藥師</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistOpSearch" placeholder="輸入姓名或員編...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small text-secondary">📋 作業方式</label>
+                        <select class="form-select form-select-sm border-secondary" id="ctrlHistActionSelect">
+                            <option value="全部">全部項目</option>
+                            <option value="一般處方調劑">一般處方調劑</option>
+                            <option value="病房常備領用">病房常備領用</option>
+                            <option value="住院退藥">住院退藥</option>
+                            <option value="毀損報銷">毀損報銷</option>
+                            <option value="盤盈虧調整">盤盈虧調整</option>
+                            <option value="藥庫撥出">藥庫撥出</option>
+                            <option value="藥庫撥入">藥庫撥入</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold small text-secondary">⚖️ 帳目狀態</label>
+                        <select class="form-select form-select-sm border-secondary" id="ctrlHistStatusSelect">
+                            <option value="全部">全部</option>
+                            <option value="正常">正常</option>
+                            <option value="已作廢">已作廢</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="ctrlHistSearchBtn">🔍 篩選</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                        <thead class="table-danger text-dark fw-bold sticky-top" style="z-index: 5;">
+                            <tr>
+                                <th style="width: 13%;">過帳時間 (序號)</th>
+                                <th style="width: 10%;">作業項目</th>
+                                <th style="width: 10%;">管制藥代碼</th>
+                                <th>品名規格 (SAP碼)</th>
+                                <th style="width: 14%;">病歷號 ／ 領藥號</th>
+                                <th style="width: 8%;">異動數量</th>
+                                <th style="width: 10%;">經辦藥師</th>
+                                <th style="width: 15%;">備註 ／ 稽核理由</th>
+                                <th style="width: 10%;">臨床更正</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ctrlHistTableBody">
+                            <tr>
+                                <td colspan="9" class="text-muted py-4">請點擊篩選按鈕載入操作清單</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
         <div id="content-history" class="hidden">
             <div class="card academic-card p-4">
                 <h5 class="academic-title border-bottom pb-2 mb-3">線上調撥紀錄查詢與異常通報</h5>
