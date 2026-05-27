@@ -438,7 +438,10 @@ window.voidCtrlItem = async function(id) {
         
         if (!response.ok) throw new Error();
         
-        ctrlTransferList = ctrlTransferList.filter(item => item.id !== id);
+        target.recordStatus = "已作廢";
+        target.timestamp = new Date().toLocaleString() + " (已作廢)";
+        target.remark = target.remark ? target.remark + ` (作廢理由: ${voidReason})` : `作廢理由: ${voidReason}`;
+
         saveCtrlListToLocal();
         updateCtrlListUI();
         alert("✅ 紀錄已作廢，庫存自動回沖！");
