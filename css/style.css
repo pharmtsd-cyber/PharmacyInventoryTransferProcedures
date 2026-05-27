@@ -107,3 +107,12 @@ body {
 }
 .autocomplete-items div { padding: 10px; cursor: pointer; border-bottom: 1px solid #f1f1f1; font-size: 0.95rem; }
 .autocomplete-items div:hover { background-color: #e9ecef; }
+
+/* ✨ 新增：公用機台模式的醒目顏色切換 */
+body.mode-public .academic-header {
+    background-color: #fd7e14 !important; /* Bootstrap 亮橘色 */
+    transition: background-color 0.3s ease;
+}
+body.mode-public .academic-tabs .nav-link.active {
+    border-top: 3px solid #fd7e14;
+}
