@@ -1,14 +1,115 @@
+/**
+ * ====================================================================
+ * 📊 管藥全頁審計紀錄大表專屬模組 (js/ctrl_history.js)
+ * 負責處理大表的 UI 渲染、交叉篩選、模糊搜尋與日期初始化
+ * ====================================================================
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
     const ctrlHistSearchBtn = document.getElementById('ctrlHistSearchBtn');
     if (ctrlHistSearchBtn) {
         ctrlHistSearchBtn.addEventListener('click', window.updateCtrlHistoryTableUI);
     }
 
-    // ✨ 預設起訖日期都改為今天
     const todayIso = new Date().toISOString().split('T')[0];
     if(document.getElementById('ctrlHistStartDate')) document.getElementById('ctrlHistStartDate').value = todayIso;
     if(document.getElementById('ctrlHistEndDate')) document.getElementById('ctrlHistEndDate').value = todayIso;
+
+    // ✨ 1. 藥品篩選自動完成 (Autocomplete)
+    const drugSearchInput = document.getElementById('ctrlHistDrugSearch');
+    if (drugSearchInput) {
+        drugSearchInput.addEventListener('input', function(e) {
+            const val = e.target.value.toUpperCase().trim();
+            const list = document.getElementById('ctrl-hist-drug-autocomplete-list');
+            list.innerHTML = '';
+            if (!val || !window.ctrlDrugDB) return;
+
+            const matches = window.ctrlDrugDB.filter(d => {
+                const c = (d.drugCode || d.code || "").toUpperCase();
+                const n = (d.drugName || d.name || "").toUpperCase();
+                const s = (d.sapCode || d.sap || "").toUpperCase();
+                return c.includes(val) || n.includes(val) || s.includes(val);
+            }).slice(0, 10); // 最多顯示10筆
+
+            matches.forEach(drug => {
+                const item = document.createElement('div');
+                const code = drug.drugCode || drug.code;
+                const name = drug.drugName || drug.name;
+                item.innerHTML = `<strong>${code}</strong> - ${name}`;
+                item.className = "p-2 border-bottom text-dark bg-white cursor-pointer autocomplete-hover";
+                item.style.cursor = "pointer";
+                item.addEventListener('click', () => {
+                    drugSearchInput.value = code; // 填入精準代碼
+                    list.innerHTML = '';
+                    window.updateCtrlHistoryTableUI(); // 點選後自動觸發篩選
+                });
+                list.appendChild(item);
+            });
+        });
+    }
+
+    // ✨ 2. 藥師篩選自動完成 (Autocomplete)
+    const opSearchInput = document.getElementById('ctrlHistOpSearch');
+    if (opSearchInput) {
+        opSearchInput.addEventListener('input', function(e) {
+            const val = e.target.value.toUpperCase().trim();
+            const list = document.getElementById('ctrl-hist-op-autocomplete-list');
+            list.innerHTML = '';
+            if (!val || !window.realUserDB) return;
+
+            const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val)).slice(0, 10);
+            matches.forEach(user => {
+                const item = document.createElement('div');
+                item.innerHTML = `<strong>${user.empId}</strong> - ${user.name}`;
+                item.className = "p-2 border-bottom text-dark bg-white cursor-pointer autocomplete-hover";
+                item.style.cursor = "pointer";
+                item.addEventListener('click', () => {
+                    opSearchInput.value = user.name; // 填入精準姓名
+                    list.innerHTML = '';
+                    window.updateCtrlHistoryTableUI(); // 點選後自動觸發篩選
+                });
+                list.appendChild(item);
+            });
+        });
+    }
+
+    // 點擊空白處關閉選單
+    document.addEventListener("click", function (e) {
+        if (e.target !== document.getElementById('ctrlHistDrugSearch')) {
+            const list = document.getElementById('ctrl-hist-drug-autocomplete-list');
+            if (list) list.innerHTML = '';
+        }
+        if (e.target !== document.getElementById('ctrlHistOpSearch')) {
+            const list = document.getElementById('ctrl-hist-op-autocomplete-list');
+            if (list) list.innerHTML = '';
+        }
+    });
 });
+
+// ✨ 3. 大表專屬初始化 (由 app.js 登入後或 ctrl_drug.js 觸發)
+window.initCtrlHistorySection = function() {
+    // 鎖定調劑單位
+    const stationDisplay = document.getElementById('ctrlHistStationDisplay');
+    if (stationDisplay && window.currentUser) {
+        stationDisplay.value = window.currentUser.station;
+    }
+
+    // 動態載入作業方式 (從 SharePoint 系統參數維護檔)
+    const actionSelect = document.getElementById('ctrlHistActionSelect');
+    if (actionSelect && window.sysParamsDB && window.currentUser) {
+        actionSelect.innerHTML = '<option value="全部">全部項目</option>';
+        const stationOptions = window.sysParamsDB.filter(p => 
+            p.title === '管藥作業項目' && 
+            (p.station === window.currentUser.station || p.station === '全院通用')
+        );
+        stationOptions.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.itemName;
+            el.innerText = opt.itemName;
+            actionSelect.appendChild(el);
+        });
+    }
+};
 
 window.updateCtrlHistoryTableUI = function() {
     const tbody = document.getElementById('ctrlHistTableBody');
@@ -27,6 +128,9 @@ window.updateCtrlHistoryTableUI = function() {
     if (typeof ctrlTransferList === 'undefined') return;
 
     const filtered = ctrlTransferList.filter(item => {
+        // ✨ 新增防呆：確保只顯示當前單位的紀錄
+        if (item.station && window.currentUser && item.station !== window.currentUser.station) return false;
+
         if (item.rawTime < startTimestamp || item.rawTime > endTimestamp) return false;
         if (drugSearch) {
             const code = (item.drugCode || "").toUpperCase();
@@ -58,8 +162,6 @@ window.updateCtrlHistoryTableUI = function() {
         
         const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
         const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-success">正常</span>';
-
-        // 處理備註文字，避免引號讓 onclick 的 alert 報錯
         const safeRemark = (item.remark || '無備註').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
 
         html += `
