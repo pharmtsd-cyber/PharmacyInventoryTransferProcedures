@@ -447,6 +447,8 @@ window.voidCtrlItem = async function(id) {
         });
         
         if (!response.ok) throw new Error();
+
+        const result = await response.json();
         
         target.recordStatus = "已作廢";
         target.timestamp = new Date().toLocaleString() + " (已作廢)";
@@ -497,6 +499,8 @@ window.restoreCtrlItem = async function(id) {
         });
         
         if (!response.ok) throw new Error();
+
+        const result = await response.json();
         
         target.recordStatus = "正常";
         target.timestamp = new Date().toLocaleString() + " (已復原)";
