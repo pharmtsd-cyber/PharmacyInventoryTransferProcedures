@@ -72,7 +72,7 @@
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
             
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
-            <li class="nav-item"><a class="nav-link text-danger" data-tab="ctrl-history" href="#">📊 管藥全頁紀錄</a></li>
+            <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-history" href="#">📊 1-3級管藥紀錄</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
             <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥庫SAP作業</a></li>
             <li class="nav-item"><a class="nav-link" data-tab="history" href="#">歷史查詢</a></li>
@@ -249,8 +249,7 @@
         <div id="content-ctrl-history" class="hidden">
             <div class="card academic-card p-4 bg-white">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <h5 class="text-danger fw-bold mb-0">📊 一到三級管制藥操作紀錄與審計大表</h5>
-                    <span class="text-muted small">💡 本表支援地端秒級交叉篩選，作廢或改量將即時雙向連動。</span>
+                    <h5 class="text-danger fw-bold mb-0">📊 一到三級管制藥紀錄表</h5>
                 </div>
                 
                 <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
@@ -267,7 +266,7 @@
                         <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistDrugSearch" placeholder="輸入藥碼、藥名或SAP...">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-bold small text-secondary">👤 經辦藥師</label>
+                        <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
                         <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistOpSearch" placeholder="輸入姓名或員編...">
                     </div>
                     <div class="col-md-2">
@@ -300,15 +299,15 @@
                     <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
                         <thead class="table-danger text-dark fw-bold sticky-top" style="z-index: 5;">
                             <tr>
-                                <th style="width: 13%;">過帳時間 (序號)</th>
+                                <th style="width: 12%;">調劑時間</th>
                                 <th style="width: 10%;">作業項目</th>
-                                <th style="width: 10%;">管制藥代碼</th>
-                                <th>品名規格 (SAP碼)</th>
+                                <th style="width: 12%;">藥品代碼</th>
+                                <th>藥品名稱</th>
                                 <th style="width: 14%;">病歷號 ／ 領藥號</th>
                                 <th style="width: 8%;">異動數量</th>
-                                <th style="width: 10%;">經辦藥師</th>
-                                <th style="width: 15%;">備註 ／ 稽核理由</th>
-                                <th style="width: 10%;">臨床更正</th>
+                                <th style="width: 10%;">調劑藥師</th>
+                                <th style="width: 8%;">狀態 ／ 備註</th>
+                                <th style="width: 10%;">編輯 ／ 作廢</th>
                             </tr>
                         </thead>
                         <tbody id="ctrlHistTableBody">
