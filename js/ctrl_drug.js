@@ -572,6 +572,8 @@ function updateCtrlListUI() {
             </div>`;
     });
     listDiv.innerHTML = html;
+
+    if (typeof updateCtrlHistoryTableUI === 'function') updateCtrlHistoryTableUI();
 }
 
 // ==========================================
@@ -652,6 +654,8 @@ function loadCtrlListFromLocal() {
     if (typeof updateCtrlListUI === 'function') {
         updateCtrlListUI();
     }
+
+    if (typeof updateCtrlHistoryTableUI === 'function') updateCtrlHistoryTableUI();
 }
 
 function focusCorrectCtrlInput() {
