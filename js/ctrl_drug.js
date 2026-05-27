@@ -322,8 +322,16 @@ const overlay = document.getElementById('ctrlLoadingOverlay');
         if(card) card.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
     })
     .finally(() => {
-        pendingUploads--; // 🔓 上傳結束，安全鎖 -1
+        pendingUploads--; 
         if (overlay) overlay.classList.add('hidden');
+        
+        // ✨ 結帳完畢後的游標路由判斷
+        if (window.workMode === 'public') {
+            setCtrlOperator('', ''); // 公用模式：清空藥師
+            setTimeout(() => document.getElementById('ctrlOperatorSearchInput').focus(), 100);
+        } else {
+            focusCorrectCtrlInput(); // 個人模式：留在原本輸入框
+        }
     });
 
     return true;
@@ -442,6 +450,50 @@ window.voidCtrlItem = async function(id) {
     }
 };
 
+// ✨ 復原作廢紀錄
+window.restoreCtrlItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if(!confirm("♻️ 確定要將此紀錄「取消作廢」並恢復庫存帳目嗎？")) return;
+
+    const target = ctrlTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    const overlay = document.getElementById('ctrlLoadingOverlay');
+    if (overlay) overlay.classList.remove('hidden');
+    pendingUploads++;
+
+    try {
+        const payload = {
+            action: "restoreCtrl", // 🤖 後端需要新增此分支
+            itemId: parsedId,
+            station: target.station,
+            drugCode: target.drugCode,
+            quantity: target.quantity, // 重新扣回原本的庫存
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+
+        const response = await fetch(CTRL_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) throw new Error();
+        
+        target.recordStatus = "正常";
+        target.timestamp = new Date().toLocaleString() + " (已復原)";
+        saveCtrlListToLocal();
+        updateCtrlListUI();
+        alert("✅ 取消作廢成功，帳目已重新恢復！");
+    } catch (e) {
+        alert("❌ 復原失敗，請檢查網路連線。");
+    } finally {
+        pendingUploads--;
+        if (overlay) overlay.classList.add('hidden');
+    }
+};
+
 // ==========================================
 // 7. 右側管藥操作紀錄 UI 渲染 (內建地端時間過濾)
 // ==========================================
@@ -472,27 +524,34 @@ function updateCtrlListUI() {
         const badgeColor = isQtyNegative ? 'bg-danger' : 'bg-success';
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
         
+        const isVoided = item.recordStatus === '已作廢';
+        const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : (isQtyNegative ? 'border-danger':'border-success');
+        const badgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
+        const statusText = isVoided ? ' (已作廢)' : '';
+        
         html += `
-            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${isQtyNegative ? 'border-danger':'border-success'}" id="ctrl-card-${item.id}">
+            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="ctrl-card-${item.id}">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <span class="badge ${badgeColor} me-2">${item.actionType}</span>
-                        <strong class="text-dark">${item.drugCode}</strong>
+                        <span class="badge ${badgeColor} me-2">${item.actionType}${statusText}</span>
+                        <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
                         ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
                     </div>
                     <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
                 </div>
-                <div class="fw-bold text-dark small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
-                ${item.patientNo && !item.patientNo.includes('手動') ? `<div class="small text-muted" style="font-size:0.75rem;">🏥 病歷號: ${item.patientNo}</div>` : ''}
+                <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
                 ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
                 
                 <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
                     <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
                     <div class="col-5 text-end d-flex align-items-center justify-content-end">
-                        <strong class="fs-5 ${isQtyNegative ? 'text-danger':'text-success'} me-2">${qtyDisplay} 支</strong>
+                        <strong class="fs-5 ${isVoided ? 'text-secondary' : (isQtyNegative ? 'text-danger':'text-success')} me-2">${qtyDisplay} 支</strong>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')">✏️</button>
-                            <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
+                            ${isVoided 
+                                ? `<button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.7rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
+                                : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
+                            }
                         </div>
                     </div>
                 </div>
@@ -582,6 +641,39 @@ function loadCtrlListFromLocal() {
 }
 
 function focusCorrectCtrlInput() {
+    const modeBarcode = document.getElementById('ctrlModeBarcode');
+    if (modeBarcode && modeBarcode.checked) {
+        const barcodeInput = document.getElementById('ctrlBarcodeInput');
+        if (barcodeInput) barcodeInput.focus();
+    } else {
+        const searchInput = document.getElementById('ctrlDrugSearchInput');
+        if (searchInput) searchInput.focus();
+    }
+}
+
+// ✨ 處理模式切換時的 UI 變動
+window.applyWorkModeChange = function() {
+    if (window.workMode === 'public') {
+        // 切換到公用模式：清空操作藥師，游標跳至藥師輸入框
+        setCtrlOperator('', '');
+        document.getElementById('ctrlOperatorSearchInput').focus();
+    } else {
+        // 切換到個人模式：鎖定為登入者，游標跳至條碼
+        if(window.currentUser) setCtrlOperator(window.currentUser.empId, window.currentUser.name);
+        focusCorrectCtrlInput();
+    }
+};
+
+// ✨ 智慧游標路由 (改寫原本的 focusCorrectCtrlInput)
+function focusCorrectCtrlInput() {
+    // 如果是公用模式，且目前沒有選擇藥師，強制對焦在藥師輸入框
+    if (window.workMode === 'public' && (!window.ctrlCurrentOperator || !window.ctrlCurrentOperator.empId)) {
+        const opInput = document.getElementById('ctrlOperatorSearchInput');
+        if(opInput) opInput.focus();
+        return;
+    }
+
+    // 否則依照條碼/手動模式正常對焦
     const modeBarcode = document.getElementById('ctrlModeBarcode');
     if (modeBarcode && modeBarcode.checked) {
         const barcodeInput = document.getElementById('ctrlBarcodeInput');
