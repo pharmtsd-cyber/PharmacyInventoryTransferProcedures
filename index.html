@@ -253,36 +253,38 @@
                 </div>
                 
                 <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
-                    <div class="col-md-2">
+                    <div class="col-xl-1 col-md-2">
+                        <label class="form-label fw-bold small text-danger">📍 調劑單位</label>
+                        <input type="text" class="form-control form-control-sm border-danger bg-white text-center fw-bold text-secondary" id="ctrlHistStationDisplay" value="鎖定中" readonly disabled>
+                    </div>
+                    <div class="col-xl-2 col-md-2">
                         <label class="form-label fw-bold small text-danger">📅 開始日期</label>
                         <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistStartDate">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-xl-2 col-md-2">
                         <label class="form-label fw-bold small text-danger">📅 結束日期</label>
                         <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistEndDate">
                     </div>
-                    <div class="col-md-2">
+                    
+                    <div class="col-xl-2 col-md-2 position-relative">
                         <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
-                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistDrugSearch" placeholder="輸入藥碼、藥名或SAP...">
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistDrugSearch" placeholder="輸入藥碼、藥名或SAP..." autocomplete="off">
+                        <div id="ctrl-hist-drug-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
                     </div>
-                    <div class="col-md-2">
+                    
+                    <div class="col-xl-2 col-md-2 position-relative">
                         <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
-                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistOpSearch" placeholder="輸入姓名或員編...">
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistOpSearch" placeholder="輸入姓名或員編..." autocomplete="off">
+                        <div id="ctrl-hist-op-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
                     </div>
-                    <div class="col-md-2">
+                    
+                    <div class="col-xl-1 col-md-2">
                         <label class="form-label fw-bold small text-secondary">📋 作業方式</label>
                         <select class="form-select form-select-sm border-secondary" id="ctrlHistActionSelect">
-                            <option value="全部">全部項目</option>
-                            <option value="一般處方調劑">一般處方調劑</option>
-                            <option value="病房常備領用">病房常備領用</option>
-                            <option value="住院退藥">住院退藥</option>
-                            <option value="毀損報銷">毀損報銷</option>
-                            <option value="盤盈虧調整">盤盈虧調整</option>
-                            <option value="藥庫撥出">藥庫撥出</option>
-                            <option value="藥庫撥入">藥庫撥入</option>
+                            <option value="全部">載入中...</option>
                         </select>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-xl-1 col-md-1">
                         <label class="form-label fw-bold small text-secondary">⚖️ 帳目狀態</label>
                         <select class="form-select form-select-sm border-secondary" id="ctrlHistStatusSelect">
                             <option value="全部">全部</option>
@@ -290,7 +292,7 @@
                             <option value="已作廢">已作廢</option>
                         </select>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-xl-1 col-md-1">
                         <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="ctrlHistSearchBtn">🔍 篩選</button>
                     </div>
                 </div>
