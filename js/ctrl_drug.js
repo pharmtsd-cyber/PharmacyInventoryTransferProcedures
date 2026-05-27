@@ -465,7 +465,10 @@ window.voidCtrlItem = async function(id) {
 
 window.restoreCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    if(!confirm("♻️ 確定要將此紀錄「取消作廢」並恢復庫存帳目嗎？")) return;
+    
+    // ✨ 彈出視窗：強制作業人員填寫取消作廢的理由！
+    const restoreReason = prompt("♻️ 確定要將此紀錄「取消作廢」並恢復庫存嗎？\n請輸入取消作廢的理由：");
+    if(restoreReason === null) return; // 按取消則中止
 
     const target = ctrlTransferList.find(i => i.id === id);
     if(!target) return;
@@ -482,6 +485,7 @@ window.restoreCtrlItem = async function(id) {
             station: target.station,
             drugCode: target.drugCode,
             quantity: target.quantity, 
+            voidReason: restoreReason || "無", // ✨ 將理由傳送給 Power Automate
             operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
@@ -496,6 +500,10 @@ window.restoreCtrlItem = async function(id) {
         
         target.recordStatus = "正常";
         target.timestamp = new Date().toLocaleString() + " (已復原)";
+        
+        // ✨ 前端同步串接字串，讓你的「詳細」按鈕點開時能即時看到！
+        target.remark = target.remark ? target.remark + ` /取消作廢${restoreReason}/` : `/取消作廢${restoreReason}/`;
+        
         saveCtrlListToLocal();
         updateCtrlListUI();
         alert("✅ 取消作廢成功，帳目已重新恢復！");
