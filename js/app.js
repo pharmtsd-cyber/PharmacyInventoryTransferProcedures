@@ -9,6 +9,7 @@ window.ctrlDrugDB = [];
 window.sysParamsDB = [];
 window.currentUser = {};
 window.currentOperator = {}; 
+window.workMode = 'personal';
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchSystemData();
@@ -27,6 +28,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+// ✨ 監聽：公用/個人 工作模式切換
+    const modeSwitch = document.getElementById('workModeSwitch');
+    if (modeSwitch) {
+        modeSwitch.addEventListener('change', (e) => {
+            window.workMode = e.target.checked ? 'public' : 'personal';
+            document.body.classList.toggle('mode-public', e.target.checked);
+            document.getElementById('workModeLabel').innerText = e.target.checked ? '🌍 公用機台模式' : '🔒 個人鎖定模式';
+            
+            // 通知各模組因應模式改變游標與狀態
+            if(typeof window.applyWorkModeChange === 'function') {
+                window.applyWorkModeChange();
+            }
+        });
+    }    
+    
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     
@@ -185,7 +201,7 @@ function switchTab(tabName) {
     if (activeTab) activeTab.classList.add('active');
     
     // ✨ 修正：把 'ctrl-drug' 加入隱藏名單中
-    ['transfer', 'ctrl-drug', 'receive', 'storage', 'history'].forEach(t => {
+    ['transfer', 'ctrl-drug', 'ctrl-history', 'receive', 'storage', 'history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
     });
