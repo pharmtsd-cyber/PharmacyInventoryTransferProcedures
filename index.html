@@ -12,7 +12,12 @@
 <header class="academic-header">
     <div class="container-fluid d-flex justify-content-between align-items-center">
         <h4 class="mb-0 fw-bold tracking-wide">亞東紀念醫院 藥學部｜藥品調撥與管藥作業系統</h4>
-        <div id="headerUserInfo" class="hidden">
+            <div id="headerUserInfo" class="hidden d-flex align-items-center">
+            <div class="form-check form-switch me-4 border border-light rounded px-3 py-1 bg-white bg-opacity-25">
+                <input class="form-check-input mt-2" type="checkbox" id="workModeSwitch" style="cursor: pointer;">
+                <label class="form-check-label text-light fw-bold ms-1" for="workModeSwitch" id="workModeLabel" style="cursor: pointer; padding-top:2px;">🔒 個人鎖定模式</label>
+            </div>
+
             <span class="badge bg-warning text-dark me-2 border border-dark shadow-sm" id="userStationBadge">📍 載入中</span>
             <span class="badge bg-light text-dark me-2" id="userRoleBadge">藥師</span>
             <strong id="userNameDisplay">姓名</strong> (<span id="userDeptDisplay">單位</span>)
@@ -67,7 +72,7 @@
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
             
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
-            
+            <li class="nav-item"><a class="nav-link text-danger" data-tab="ctrl-history" href="#">📊 管藥全頁紀錄</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
             <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥庫SAP作業</a></li>
             <li class="nav-item"><a class="nav-link" data-tab="history" href="#">歷史查詢</a></li>
