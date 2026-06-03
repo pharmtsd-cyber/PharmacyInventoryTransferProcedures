@@ -159,24 +159,42 @@ window.updateCtrlHistoryTableUI = function() {
         const isVoided = item.recordStatus === '已作廢';
         const isQtyNegative = item.quantity < 0;
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
-        
         const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
         const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-success">正常</span>';
-        const safeRemark = (item.remark || '無備註').replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
+
+        // ✨ 動態判定通報狀態與整行底色
+        const isReported = item.reportStatus === '未處理' || item.reportStatus === '處理中';
+        const isResolved = item.reportStatus === '已結案';
+        let rowStyle = isVoided ? 'table-secondary text-muted' : '';
+        if (!isVoided && isReported) rowStyle = 'table-warning';
+        if (!isVoided && isResolved) rowStyle = 'table-info';
+
+        const reportBtnClass = (isReported || isResolved) ? 'btn-outline-warning text-dark fw-bold' : 'btn-outline-secondary';
+        const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
+
+        // ✨ 組合「四大類別」履歷 (乾淨俐落)
+        let detailText = ``;
+        if (item.remark) detailText += `📍【作業備註】 (👤 ${item.operatorName || '未知'})\n${item.remark}\n\n`;
+        if (item.voidReason) detailText += `🗑️【作廢軌跡】 (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})\n${item.voidReason}\n\n`;
+        if (item.reportReason) detailText += `⚠️【異常通報】 (👤 ${item.reportName || '未知'} - ${item.reportEmpID || ''})\n狀態：${item.reportStatus || '未處理'}\n內容：${item.reportReason}\n\n`;
+        if (item.managerResult) detailText += `🛡️【主管批示】 (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})\n${item.managerResult}\n`;
+        if (!detailText) detailText = "目前無任何備註或通報紀錄。";
+        
+        const safeDetail = detailText.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
 
         html += `
-            <tr class="${isVoided ? 'table-secondary text-muted' : ''}">
+            <tr class="${rowStyle}">
                 <td style="font-size: 0.8rem;" class="text-start font-monospace">
                     <div>${item.timestamp.split(' ')[0]}</div>
                     <div class="text-secondary">${item.timestamp.split(' ')[1] || ''}</div>
                 </td>
                 <td><span class="badge ${isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success')}">${item.actionType}</span></td>
                 <td class="font-monospace text-start">
-                    <div class="fw-bold fs-6">${item.drugCode}</div>
+                    <div class="fw-bold fs-6">${item.drugCode || item.code}</div>
                     ${item.sap ? `<div class="small text-muted">${item.sap}</div>` : ''}
                 </td>
                 <td class="text-start">
-                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName}</div>
+                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || item.name}</div>
                 </td>
                 <td class="text-start font-monospace" style="font-size: 0.8rem;">
                     <div>🏥 ${item.patientNo && !item.patientNo.includes('手動') ? item.patientNo : '<span class="text-muted">-</span>'}</div>
@@ -189,15 +207,18 @@ window.updateCtrlHistoryTableUI = function() {
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
-                    <button class="btn btn-sm btn-outline-info py-0 px-2 mt-1" style="font-size:0.7rem;" onclick="alert('【詳細備註紀錄】\\n\\n' + '${safeRemark}')">詳細</button>
+                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="alert('📋 紀錄明細\\n\\n' + '${safeDetail}')">展開紀錄</button>
                 </td>
                 <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
-                        ${isVoided 
-                            ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
-                            : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
-                        }
+                    <div class="d-flex flex-column gap-1 align-items-center">
+                        <div class="btn-group btn-group-sm w-100">
+                            <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
+                            ${isVoided 
+                                ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
+                                : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
+                            }
+                        </div>
+                        <button class="btn btn-sm ${reportBtnClass} py-0 w-100 mt-1" style="font-size:0.7rem;" onclick="window.reportAnomalyItem('${item.id}')" ${isVoided ? 'disabled' : ''}>⚠️ ${reportBtnText}</button>
                     </div>
                 </td>
             </tr>`;
