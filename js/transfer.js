@@ -378,127 +378,144 @@ function updateTransferListUI() {
 // ==========================================
 window.editTransferItem = async function(id, currentQty) {
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) { alert("❌ 資料尚未同步。"); return; }
-    const inputStr = prompt(`請輸入修改後的數量：`, currentQty);
-    if(inputStr === null) return;
-    const newQty = parseInt(inputStr, 10);
-    if(isNaN(newQty) || newQty <= 0) return;
-
+    if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
+    
     const target = transferList.find(i => i.id === id);
     if(!target) return;
 
+    const recordInfo = `<div class="text-start p-3 bg-light rounded border mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🔄 單位：</strong>${target.outDept} ➔ ${target.inDept}</div>`;
+
+    const { value: newQty } = await Swal.fire({
+        title: '✏️ 修改調撥數量',
+        html: recordInfo + `請輸入修改後的數量：`,
+        input: 'number',
+        inputValue: currentQty,
+        showCancelButton: true,
+        confirmButtonColor: '#0d6efd',
+        cancelButtonText: '取消',
+        confirmButtonText: '確認修改',
+        inputValidator: (value) => { if (!value || value <= 0) return '請輸入有效的正整數！'; }
+    });
+
+    if (!newQty || parseInt(newQty, 10) === currentQty) return;
+
     try {
-        const payload = {
-            action: "updateTransfer",
-            itemId: parsedId,
-            quantity: newQty,
-            operatorId: window.currentUser.empId,
-            operatorName: window.currentUser.name
-        };
+        const payload = { action: "updateTransfer", itemId: parsedId, quantity: parseInt(newQty, 10), operatorId: window.currentUser.empId, operatorName: window.currentUser.name };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
         
-        target.quantity = newQty;
-        target.timestamp = new Date().toLocaleString() + " (已修改)";
+        target.quantity = parseInt(newQty, 10); target.timestamp = new Date().toLocaleString() + " (已修改)";
         saveTransferListToLocal(); updateTransferListUI();
-    } catch (e) { alert("❌ 修改失敗。"); }
+        Swal.fire({ title: '修改成功', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch (e) { Swal.fire('錯誤', '修改失敗。', 'error'); }
 };
 
 window.voidTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) { alert("❌ 資料尚未同步。"); return; }
-    const voidReason = prompt("🚨【調撥作廢】\n請輸入作廢理由：");
-    if (!voidReason || !voidReason.trim()) return;
-
+    if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
+    
     const target = transferList.find(i => i.id === id);
     if(!target) return;
 
+    const recordInfo = `<div class="text-start p-3 bg-danger bg-opacity-10 rounded border border-danger mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🔢 數量：</strong>${target.quantity}<br><strong>🔄 流向：</strong>${target.outDept} ➔ ${target.inDept}</div>`;
+
+    const { value: voidReason } = await Swal.fire({
+        title: '🚨 調撥作廢',
+        html: recordInfo + '請輸入作廢/退回理由：',
+        input: 'text',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: '取消',
+        confirmButtonText: '確定作廢',
+        inputValidator: (value) => { if (!value || !value.trim()) return '必須輸入理由！'; }
+    });
+
+    if (!voidReason) return;
+
     try {
-        const payload = {
-            action: "voidTransfer", 
-            itemId: parsedId,
-            voidReason: voidReason,
-            operatorId: window.currentUser.empId,
-            operatorName: window.currentUser.name
-        };
+        const payload = { action: "voidTransfer", itemId: parsedId, voidReason: voidReason, operatorId: window.currentUser.empId, operatorName: window.currentUser.name };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        const responseText = await response.text();
-        let result = {};
-        try { result = JSON.parse(responseText); } catch (e) {}
+        const result = await response.json();
 
         target.recordStatus = "已作廢";
-        if (result.newVoidReason) target.voidReason = result.newVoidReason;
-        else target.voidReason = voidReason;
+        if (result.newVoidReason) target.voidReason = result.newVoidReason; else target.voidReason = voidReason;
         
-        saveTransferListToLocal(); updateTransferListUI();
-        alert("✅ 紀錄已作廢！");
-    } catch (e) { alert("❌ 作廢失敗。"); }
+        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        Swal.fire({ title: '已作廢', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch (e) { Swal.fire('錯誤', '作廢失敗。', 'error'); }
 };
 
 window.restoreTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    const restoreReason = prompt("♻️ 請輸入取消作廢的理由：");
-    if(!restoreReason) return; 
-
     const target = transferList.find(i => i.id === id);
     if(!target) return;
 
+    const recordInfo = `<div class="text-start p-3 bg-light rounded border border-success mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🗑️ 原作廢理由：</strong>${target.voidReason}</div>`;
+
+    const { value: restoreReason } = await Swal.fire({
+        title: '♻️ 取消作廢',
+        html: recordInfo + '請輸入取消作廢的理由：',
+        input: 'text',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonText: '取消',
+        confirmButtonText: '確認復原',
+        inputValidator: (value) => { if (!value) return '請輸入取消作廢理由！'; }
+    });
+
+    if(!restoreReason) return; 
+
     try {
-        const payload = {
-            action: "restoreTransfer", 
-            itemId: parsedId,
-            voidReason: restoreReason,
-            operatorId: window.currentUser.empId,
-            operatorName: window.currentUser.name
-        };
+        const payload = { action: "restoreTransfer", itemId: parsedId, voidReason: restoreReason, operatorId: window.currentUser.empId, operatorName: window.currentUser.name };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        const responseText = await response.text();
-        let result = {};
-        try { result = JSON.parse(responseText); } catch (e) {}
+        const result = await response.json();
 
         target.recordStatus = "正常";
         if (result.newVoidReason) target.voidReason = result.newVoidReason;
         
-        saveTransferListToLocal(); updateTransferListUI();
-        alert("✅ 取消作廢成功！");
-    } catch (e) { alert("❌ 復原失敗。"); }
+        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        Swal.fire({ title: '復原成功', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch (e) { Swal.fire('錯誤', '復原失敗。', 'error'); }
 };
 
 window.reportAnomalyTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) { alert("❌ 資料未同步。"); return; }
+    if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
     const target = transferList.find(i => i.id === id);
     if(!target) return;
 
     if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
-        alert(`【通報狀態】：${target.reportStatus}\n【內容】：\n${target.reportReason || '無'}\n【批示】：\n${target.managerResult || '尚未批示'}`);
+        Swal.fire({ title: '⚠️ 通報狀態', html: `<div class="text-start"><strong>【狀態】：</strong>${target.reportStatus}<br><br><strong>【內容】：</strong><br>${target.reportReason}<br><br><strong>【批示】：</strong><br>${target.managerResult || '尚未批示'}</div>`, icon: 'info' });
         return;
     }
 
-    const reportReason = prompt("⚠️ 【異常通報】\n請描述調撥異常狀況：");
-    if (!reportReason || !reportReason.trim()) return;
+    const recordInfo = `<div class="text-start p-3 bg-warning bg-opacity-10 rounded border border-warning mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🔄 單位：</strong>${target.outDept} ➔ ${target.inDept}</div>`;
+
+    const { value: reportReason } = await Swal.fire({
+        title: '⚠️ 異常通報',
+        html: recordInfo + '請描述調撥異常狀況：',
+        input: 'textarea',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonText: '取消',
+        confirmButtonText: '送出通報',
+        inputValidator: (value) => { if (!value || !value.trim()) return '請輸入異常狀況！'; }
+    });
+
+    if (!reportReason) return;
 
     try {
-        const payload = {
-            action: "reportAnomalyTransfer", // ✨ 注意這裡的 action 名稱
-            itemId: parsedId,
-            reportReason: reportReason,
-            operatorId: window.currentUser.empId,
-            operatorName: window.currentUser.name
-        };
+        const payload = { action: "reportAnomalyTransfer", itemId: parsedId, reportReason: reportReason, operatorId: window.currentUser.empId, operatorName: window.currentUser.name };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        const responseText = await response.text();
-        let result = {};
-        try { result = JSON.parse(responseText); } catch (e) {}
+        const result = await response.json();
 
         target.reportStatus = "未處理";
-        if (result.newReportReason) target.reportReason = result.newReportReason;
-        else target.reportReason = reportReason;
+        if (result.newReportReason) target.reportReason = result.newReportReason; else target.reportReason = reportReason;
 
-        saveTransferListToLocal(); updateTransferListUI();
-        alert("✅ 異常通報已送出！");
-    } catch (e) { alert("❌ 通報失敗。"); }
+        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        Swal.fire({ title: '通報已送出', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch (e) { Swal.fire('錯誤', '通報失敗。', 'error'); }
 };
