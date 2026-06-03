@@ -415,22 +415,21 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     }
 };
 
+// ==========================================
+// 管藥作廢 (對齊 VoidReason 欄位)
+// ==========================================
 window.voidCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) {
-        alert("❌ 此資料尚未同步至雲端，暫不開放作廢。請於 1 秒後重試。"); return;
-    }
+    if (isNaN(parsedId)) { alert("❌ 資料尚未同步，暫不開放作廢。"); return; }
 
-    const voidReason = prompt("🚨【管藥稽核警告：作廢紀錄】\n管制藥品一經登記不得刪除，只能作廢。\n請輸入嚴格的「作廢理由/退槍原因」：");
-    if (voidReason === null) return;
-    if (!voidReason.trim()) { alert("❌ 必須輸入作廢理由，否則無法作廢！"); return; }
+    const voidReason = prompt("🚨【管藥稽核警告：作廢紀錄】\n請輸入嚴格的「作廢理由/退槍原因」：");
+    if (!voidReason || !voidReason.trim()) return;
 
     const target = ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
-
     pendingUploads++; 
 
     try {
@@ -445,56 +444,43 @@ window.voidCtrlItem = async function(id) {
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(CTRL_API_URL, { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const response = await fetch(CTRL_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
         
-        // 1. 檢查 HTTP 狀態
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`API 狀態異常: ${response.status} - ${errText}`);
-        }
-        
-        // 2. ✨ 防彈拆包裹：先拿純文字，再嘗試轉 JSON
         const responseText = await response.text();
         let result = {};
-        try {
-            result = JSON.parse(responseText);
-        } catch (jsonErr) {
-            console.warn("⚠️ PA 回傳的 JSON 格式有瑕疵，但資料庫已執行成功。原始回傳：", responseText);
-        }
+        try { result = JSON.parse(responseText); } catch (e) {}
 
-        // 3. 更新畫面
         target.recordStatus = "已作廢";
         target.timestamp = new Date().toLocaleString() + " (已作廢)";
-        if (result.newRemark) target.remark = result.newRemark;
+        
+        // ✨ 精準對齊專屬欄位
+        if (result.newVoidReason) target.voidReason = result.newVoidReason;
+        else target.voidReason = voidReason; 
+        target.voidEmpID = window.currentUser.empId;
+        target.voidName = window.currentUser.name;
 
         saveCtrlListToLocal();
         updateCtrlListUI();
+        if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
         alert("✅ 紀錄已作廢，庫存自動回沖！");
-    } catch (e) {
-        console.error("❌ 捕捉到作廢錯誤細節：", e);
-        alert("❌ 作廢過程發生異常，但資料庫可能已成功。請按 F12 查看主控台確認！");
-    } finally {
-        pendingUploads--;
-        if (overlay) overlay.classList.add('hidden');
-    }
+    } catch (e) { alert("❌ 作廢失敗，請檢查網路連線。"); } 
+    finally { pendingUploads--; if (overlay) overlay.classList.add('hidden'); }
 };
 
+// ==========================================
+// 管藥復原 (對齊 VoidReason 欄位)
+// ==========================================
 window.restoreCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    
-    const restoreReason = prompt("♻️ 確定要將此紀錄「取消作廢」並恢復庫存嗎？\n請輸入取消作廢的理由：");
-    if(restoreReason === null) return; 
+    const restoreReason = prompt("♻️ 確定要將此紀錄「取消作廢」嗎？\n請輸入取消作廢的理由：");
+    if(!restoreReason) return; 
 
     const target = ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
-    
     pendingUploads++;
 
     try {
@@ -504,47 +490,82 @@ window.restoreCtrlItem = async function(id) {
             station: target.station,
             drugCode: target.drugCode,
             quantity: target.quantity, 
-            voidReason: restoreReason || "無", 
+            voidReason: restoreReason, 
             operatorId: window.currentUser.empId,
             operatorName: window.currentUser.name
         };
 
-        const response = await fetch(CTRL_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const response = await fetch(CTRL_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
         
-        // 1. 檢查 HTTP 狀態
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`API 狀態異常: ${response.status} - ${errText}`);
-        }
-        
-        // 2. ✨ 防彈拆包裹：先拿純文字，再嘗試轉 JSON
         const responseText = await response.text();
         let result = {};
-        try {
-            result = JSON.parse(responseText);
-        } catch (jsonErr) {
-            console.warn("⚠️ PA 回傳的 JSON 格式有瑕疵，但資料庫已執行成功。原始回傳：", responseText);
-        }
+        try { result = JSON.parse(responseText); } catch (e) {}
         
-        // 3. 更新畫面
         target.recordStatus = "正常";
         target.timestamp = new Date().toLocaleString() + " (已復原)";
-        if (result.newRemark) target.remark = result.newRemark;
+        if (result.newVoidReason) target.voidReason = result.newVoidReason;
+        target.voidEmpID = window.currentUser.empId;
+        target.voidName = window.currentUser.name;
         
         saveCtrlListToLocal();
         updateCtrlListUI();
+        if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
         alert("✅ 取消作廢成功，帳目已重新恢復！");
-    } catch (e) {
-        console.error("❌ 捕捉到復原錯誤細節：", e);
-        alert("❌ 復原過程發生異常，但資料庫可能已成功。請按 F12 查看主控台確認！");
-    } finally {
-        pendingUploads--;
-        if (overlay) overlay.classList.add('hidden');
+    } catch (e) { alert("❌ 復原失敗，請檢查網路連線。"); } 
+    finally { pendingUploads--; if (overlay) overlay.classList.add('hidden'); }
+};
+
+// ==========================================
+// ✨ 新增：管藥異常通報功能
+// ==========================================
+window.reportAnomalyItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) { alert("❌ 資料尚未同步，無法通報。"); return; }
+
+    const target = ctrlTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    // ✨ 防呆與查看機制：如果已經通報過，點擊會變成查看狀態！
+    if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
+        alert(`【目前通報狀態】：${target.reportStatus}\n\n【通報內容】：\n${target.reportReason || '無內容'}\n\n【主管批示】：\n${target.managerResult || '主管尚未批示'}`);
+        return;
     }
+
+    const reportReason = prompt("⚠️ 【異常通報】\n請詳細描述此筆調劑的異常狀況 (例如：包裝破損、數量不符、效期異常)：");
+    if (!reportReason || !reportReason.trim()) return;
+
+    const overlay = document.getElementById('ctrlLoadingOverlay');
+    if (overlay) overlay.classList.remove('hidden');
+
+    try {
+        const payload = {
+            action: "reportAnomaly", // ✨ 對應 PA Switch 的分支名稱
+            itemId: parsedId,
+            reportReason: reportReason,
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+
+        const response = await fetch(CTRL_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
+        
+        const responseText = await response.text();
+        let result = {};
+        try { result = JSON.parse(responseText); } catch (e) {}
+
+        target.reportStatus = "未處理";
+        if (result.newReportReason) target.reportReason = result.newReportReason;
+        else target.reportReason = reportReason;
+        target.reportEmpID = window.currentUser.empId;
+        target.reportName = window.currentUser.name;
+
+        saveCtrlListToLocal();
+        updateCtrlListUI();
+        if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
+        alert("✅ 異常通報已成功送出給主管！");
+    } catch (e) { alert("❌ 通報失敗，請檢查網路連線。"); } 
+    finally { if (overlay) overlay.classList.add('hidden'); }
 };
 
 // ==========================================
