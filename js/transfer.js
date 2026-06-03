@@ -1,17 +1,17 @@
 // ==========================================
 // 1. 全域變數與 API 網址
 // ==========================================
-// 👉 🚨 這是正式版！請務必貼上你在 Power Automate 拿到的「調撥寫入 API」網址
+// 👉 調撥寫入 API 網址 (與管藥不同，請確認正確)
 const API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
-let recentTransferList = []; 
+let transferList = []; 
 let tempManualDrug = null;
+window.transferTimeFilter = 'today'; // 預設顯示今日紀錄
 
 // ==========================================
 // 2. 綁定網頁事件 (DOM 載入完成後執行)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    // ✨ 網頁一載入，先從本地硬碟讀取近兩日的紀錄
     loadTransferListFromLocal();
 
     const opSearch = document.getElementById('operatorSearchInput');
@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         opSearch.addEventListener('input', handleOperatorSearch);
         opSearch.addEventListener('keypress', handleOperatorEnter); 
     }
-    
     const resetOpBtn = document.getElementById('resetOperatorBtn');
     if (resetOpBtn) resetOpBtn.addEventListener('click', resetOperator);
     
@@ -44,6 +43,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const inDeptSelect = document.getElementById('inDept');
     if (inDeptSelect) inDeptSelect.addEventListener('change', (e) => localStorage.setItem('savedInDept', e.target.value));
     
+    // ✨ 綁定今日/近兩日切換按鈕
+    const timeToday = document.getElementById('transferTimeToday');
+    if (timeToday) {
+        timeToday.addEventListener('change', () => {
+            window.transferTimeFilter = 'today';
+            document.getElementById('transferListTitle').innerText = '今日調撥操作紀錄';
+            updateTransferListUI();
+        });
+    }
+    const timeTwoDays = document.getElementById('transferTimeTwoDays');
+    if (timeTwoDays) {
+        timeTwoDays.addEventListener('change', () => {
+            window.transferTimeFilter = '2days';
+            document.getElementById('transferListTitle').innerText = '近兩日調撥操作紀錄';
+            updateTransferListUI();
+        });
+    }
+
     document.addEventListener("click", function (e) {
         if (e.target !== document.getElementById('operatorSearchInput')) {
             const list = document.getElementById('operator-autocomplete-list');
@@ -56,30 +73,27 @@ document.addEventListener('DOMContentLoaded', () => {
 // 3. 本地記憶保存機制 (Local Storage)
 // ==========================================
 function saveTransferListToLocal() {
-    localStorage.setItem('recentTransferData', JSON.stringify(recentTransferList));
+    localStorage.setItem('transferData', JSON.stringify(transferList));
 }
 
 function loadTransferListFromLocal() {
-    const savedData = localStorage.getItem('recentTransferData');
+    const savedData = localStorage.getItem('transferData');
     if (savedData) {
         try {
             const parsed = JSON.parse(savedData);
             const now = Date.now();
-            // ✨ 只保留 rawTime 在 48 小時 (172800000 毫秒) 內的紀錄
-            recentTransferList = parsed.filter(item => {
-                if (!item.rawTime) return false;
-                return (now - item.rawTime) <= 172800000;
-            });
-            saveTransferListToLocal(); // 把過期的清掉後重新存檔
-        } catch(e) {
-            recentTransferList = [];
-        }
+            // 只保留 rawTime 在 48 小時內的紀錄
+            transferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 172800000);
+            saveTransferListToLocal(); 
+        } catch(e) { transferList = []; }
+    } else {
+        transferList = [];
     }
-    updateRecentListUI();
+    updateTransferListUI(); // ✨ 這裡正確呼叫新的 UI 渲染函數
 }
 
 // ==========================================
-// 4. 操作藥師 (模糊搜尋、Enter確認與游標跳轉)
+// 4. 操作藥師與單位初始化
 // ==========================================
 window.initOperatorAndDept = function() {
     if (!window.currentUser) return;
@@ -88,49 +102,35 @@ window.initOperatorAndDept = function() {
     const outDeptSelect = document.getElementById('outDept');
     const inDeptSelect = document.getElementById('inDept');
     
-    // 讀取瀏覽器硬碟中的記憶
     const savedOutDept = localStorage.getItem('savedOutDept');
     const savedInDept = localStorage.getItem('savedInDept');
 
-    // 處理撥出單位
     if (outDeptSelect) {
         if (savedOutDept) {
-            outDeptSelect.value = savedOutDept; // 優先使用上次的記憶
+            outDeptSelect.value = savedOutDept; 
         } else {
-            // 如果從來沒設定過，嘗試預設為登入藥師的單位
             for(let i = 0; i < outDeptSelect.options.length; i++) {
                 if(outDeptSelect.options[i].value === window.currentUser.dept) {
-                    outDeptSelect.selectedIndex = i; 
-                    break;
+                    outDeptSelect.selectedIndex = i; break;
                 }
             }
         }
     }
-
-    // 處理撥入單位
-    if (inDeptSelect && savedInDept) {
-        inDeptSelect.value = savedInDept; // 優先使用上次的記憶
-    }
+    if (inDeptSelect && savedInDept) inDeptSelect.value = savedInDept; 
 };
 
 function setOperator(id, name) {
     window.currentOperator = { empId: id, name: name };
     const opSearch = document.getElementById('operatorSearchInput');
     if (opSearch) opSearch.value = '';
-    
     const opDisplay = document.getElementById('operatorNameDisplay');
     if (opDisplay) opDisplay.innerText = `${name} (${id})`;
 }
 
 function resetOperator() {
-    if (window.currentUser) {
-        setOperator(window.currentUser.empId, window.currentUser.name);
-    }
+    if (window.currentUser) setOperator(window.currentUser.empId, window.currentUser.name);
     const opSearch = document.getElementById('operatorSearchInput');
-    if (opSearch) {
-        opSearch.value = '';
-        opSearch.focus(); 
-    }
+    if (opSearch) { opSearch.value = ''; opSearch.focus(); }
 }
 
 function handleOperatorSearch(e) {
@@ -139,7 +139,7 @@ function handleOperatorSearch(e) {
     list.innerHTML = '';
     if (!val || !window.realUserDB) return; 
 
-    const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val));
+    const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val)).slice(0,10);
     matches.forEach(user => {
         const item = document.createElement('div');
         item.innerHTML = `<strong>${user.empId}</strong> - ${user.name}`;
@@ -157,15 +157,13 @@ function handleOperatorEnter(e) {
         e.preventDefault();
         const val = this.value.trim().toUpperCase();
         if (!val || !window.realUserDB) return;
-
         const user = window.realUserDB.find(u => u.empId.toUpperCase() === val || u.name === val);
         if (user) {
             setOperator(user.empId, user.name);
             document.getElementById('operator-autocomplete-list').innerHTML = ''; 
             focusCorrectInput(); 
         } else {
-            alert("❌ 找不到此員編或姓名，請重新輸入");
-            this.select(); 
+            alert("❌ 找不到此員編或姓名"); this.select(); 
         }
     }
 }
@@ -184,7 +182,6 @@ function focusCorrectInput() {
 function toggleInputMode() {
     document.getElementById('manualQtySection').classList.add('hidden');
     tempManualDrug = null;
-    
     if(document.getElementById('modeBarcode').checked) {
         document.getElementById('barcodeSection').classList.remove('hidden');
         document.getElementById('manualSection').classList.add('hidden');
@@ -198,25 +195,24 @@ function toggleInputMode() {
 }
 
 // ==========================================
-// 5. 即時寫入核心 (連動 API)
+// 5. 寫入核心 (連動 API)
 // ==========================================
 async function processDirectEntry(data) {
     const outDept = document.getElementById('outDept').value;
     const inDept = document.getElementById('inDept').value;
-    
-    if (outDept === inDept) {
-        alert("❌ 撥出單位與撥入單位不能相同！"); return false;
-    }
+    if (outDept === inDept) { alert("❌ 撥出與撥入單位不能相同！"); return false; }
 
     const payload = {
-        action: "create",
+        action: "createTransfer", // ✨ 建立調撥
         itemId: 0,
         ...data,
+        actionType: "調出",
         outDept: outDept,
         inDept: inDept,
         operatorId: window.currentOperator.empId,
         operatorName: window.currentOperator.name,
-        remark: document.getElementById('remarkInput').value.trim()
+        remark: document.getElementById('remarkInput').value.trim(),
+        recordStatus: "正常"
     };
 
     const overlay = document.getElementById('loadingOverlay');
@@ -224,38 +220,30 @@ async function processDirectEntry(data) {
 
     try {
         const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
-        
-        if (!response.ok) throw new Error("API 請求失敗");
+        if (!response.ok) throw new Error();
         const result = await response.json();
         
-        // 賦予 SharePoint ID 與時間戳記
-        payload.id = result.newId; 
+        payload.id = result.newId.toString(); 
         payload.timestamp = new Date().toLocaleString();
-        payload.rawTime = Date.now(); // ✨ 存入純數字時間，供過濾過期資料使用
+        payload.rawTime = Date.now(); 
         
-        // 寫入成功，推入清單最上方並存檔
-        recentTransferList.unshift(payload);
+        transferList.unshift(payload);
         saveTransferListToLocal();
-        updateRecentListUI();
+        updateTransferListUI();
         
         document.getElementById('remarkInput').value = ''; 
         return true;
-        
     } catch (error) {
-        alert("❌ 寫入資料庫失敗，請檢查網路連線。");
-        console.error(error);
-        return false;
+        alert("❌ 寫入失敗，請檢查網路連線。"); return false;
     } finally {
         if(overlay) overlay.classList.add('hidden');
     }
 }
 
 // ==========================================
-// 6. 條碼解析與觸發
+// 6. 條碼解析與手動搜尋
 // ==========================================
 async function handleBarcodeScan(e) {
     if (e.key === 'Enter') {
@@ -266,10 +254,7 @@ async function handleBarcodeScan(e) {
         const parts = raw.split(';');
         if(parts.length >= 4) {
             const drugCode = parts[1].toUpperCase();
-            if (!window.realDrugDB || window.realDrugDB.length === 0) {
-                alert("藥品資料庫未載入或為空！"); return;
-            }
-
+            if (!window.realDrugDB || window.realDrugDB.length === 0) { alert("藥品庫未載入"); return; }
             const drug = window.realDrugDB.find(d => d.code === drugCode) || { name: "未知藥品", sap: "未知" };
             
             await processDirectEntry({
@@ -277,18 +262,11 @@ async function handleBarcodeScan(e) {
                 drugCode: drugCode, sap: drug.sap, drugName: drug.name,
                 prescribeNo: parts[2], quantity: parseInt(parts[3]) || 0
             });
-        } else { 
-            alert("❌ 條碼格式錯誤"); 
-        }
-        
-        this.value = '';
-        setTimeout(() => this.focus(), 10);
+        } else { alert("❌ 條碼格式錯誤"); }
+        this.value = ''; setTimeout(() => this.focus(), 10);
     }
 }
 
-// ==========================================
-// 7. 手動搜尋與觸發
-// ==========================================
 function handleFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
     const list = document.getElementById('autocomplete-list');
@@ -296,25 +274,18 @@ function handleFuzzySearch(e) {
     if (!val || !window.realDrugDB) return; 
 
     const matches = window.realDrugDB.filter(d => 
-        (d.code && d.code.includes(val)) || 
-        (d.name && d.name.toUpperCase().includes(val)) || 
-        (d.sap && d.sap.includes(val))
+        (d.code && d.code.includes(val)) || (d.name && d.name.toUpperCase().includes(val)) || (d.sap && d.sap.includes(val))
     ).slice(0, 15); 
 
     matches.forEach(drug => {
         const item = document.createElement('div');
         item.innerHTML = `<strong>${drug.code}</strong> - ${drug.name} <small class="text-muted">(${drug.sap})</small>`;
         item.addEventListener('click', () => {
-            e.target.value = ''; 
-            list.innerHTML = '';
-            tempManualDrug = drug;
+            e.target.value = ''; list.innerHTML = ''; tempManualDrug = drug;
             document.getElementById('manualSelectedDrug').value = `${drug.code} - ${drug.name}`;
             document.getElementById('manualQtySection').classList.remove('hidden');
             const qtyInput = document.getElementById('manualQtyInput');
-            if (qtyInput) {
-                qtyInput.value = '';
-                qtyInput.focus();
-            }
+            if (qtyInput) { qtyInput.value = ''; qtyInput.focus(); }
         });
         list.appendChild(item);
     });
@@ -325,37 +296,126 @@ async function handleManualQtyEnter(e) {
         e.preventDefault();
         const qty = parseInt(this.value);
         if(isNaN(qty) || qty <= 0) { alert("請輸入正確數量"); return; }
-        
         const success = await processDirectEntry({
-            mode: "手動", raw: "", patientNo: "", prescribeNo: "",
+            mode: "手動", raw: "手動輸入", patientNo: "無", prescribeNo: "無",
             drugCode: tempManualDrug.code, sap: tempManualDrug.sap,
             drugName: tempManualDrug.name, quantity: qty
         });
-        
         if(success) {
             document.getElementById('manualQtySection').classList.add('hidden');
-            tempManualDrug = null;
-            focusCorrectInput(); 
+            tempManualDrug = null; focusCorrectInput(); 
         }
     }
 }
 
 // ==========================================
-// 調撥作廢 
+// 7. ✨ 右側清單渲染 (加入時間過濾與最新 UI)
 // ==========================================
-window.voidTransferItem = async function(id) {
+function updateTransferListUI() {
+    // 支援新版 HTML 的 ID，若無則降級找舊版
+    const listDiv = document.getElementById('transferRecentList') || document.getElementById('recentList');
+    if(!listDiv) return;
+
+    const todayStr = new Date().toLocaleDateString();
+    const filteredList = transferList.filter(item => {
+        if (window.transferTimeFilter === 'today') {
+            return new Date(item.rawTime).toLocaleDateString() === todayStr;
+        }
+        return true; 
+    });
+
+    const queueCount = document.getElementById('transferQueueCount') || document.getElementById('queueCount');
+    if(queueCount) queueCount.innerText = `${filteredList.length} 筆`;
+    
+    if(filteredList.length === 0) {
+        listDiv.innerHTML = `<div class="text-center text-muted mt-5 py-4">此區間尚無調撥紀錄</div>`; return;
+    }
+
+    let html = '';
+    filteredList.forEach(item => {
+        const isVoided = item.recordStatus === '已作廢';
+        const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : 'border-primary';
+        const badgeColor = isVoided ? 'bg-secondary' : 'bg-primary';
+        const qtyClass = isVoided ? 'text-secondary' : 'text-primary';
+        const statusText = isVoided ? ' (已作廢)' : '';
+        
+        html += `
+            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="transfer-card-${item.id}">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div>
+                        <span class="badge ${badgeColor} me-2">${item.actionType || '調出'}${statusText}</span>
+                        <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
+                        ${item.prescribeNo && !item.prescribeNo.includes('手動') && item.prescribeNo !== '無' ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
+                    </div>
+                    <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
+                </div>
+                <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
+                ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
+                
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
+                    <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
+                    <div class="col-6 text-end d-flex align-items-center justify-content-end">
+                        <strong class="fs-5 ${qtyClass} me-2">${item.quantity}</strong>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editTransferItem('${item.id}', ${item.quantity})" ${isVoided ? 'disabled' : ''}>✏️</button>
+                            ${isVoided 
+                                ? `<button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.7rem;" onclick="window.restoreTransferItem('${item.id}')">♻️</button>`
+                                : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidTransferItem('${item.id}')">🗑️</button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    });
+    listDiv.innerHTML = html;
+
+    // ✨ 連動更新全頁大表
+    if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+}
+
+// ==========================================
+// 8. 修改 / 作廢 / 復原 / 通報 API 串接
+// ==========================================
+window.editTransferItem = async function(id, currentQty) {
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) { alert("❌ 資料未同步。"); return; }
+    if (isNaN(parsedId)) { alert("❌ 資料尚未同步。"); return; }
+    const inputStr = prompt(`請輸入修改後的數量：`, currentQty);
+    if(inputStr === null) return;
+    const newQty = parseInt(inputStr, 10);
+    if(isNaN(newQty) || newQty <= 0) return;
 
-    const voidReason = prompt("🚨【調撥作廢】\n請輸入作廢理由：");
-    if (!voidReason || !voidReason.trim()) return;
-
-    const target = recentTransferList.find(i => i.id === id); // 確保陣列名稱是 recentTransferList
+    const target = transferList.find(i => i.id === id);
     if(!target) return;
 
     try {
         const payload = {
-            action: "voidTransfer", // ✨ PA 調撥作廢分支
+            action: "updateTransfer",
+            itemId: parsedId,
+            quantity: newQty,
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+        const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
+        
+        target.quantity = newQty;
+        target.timestamp = new Date().toLocaleString() + " (已修改)";
+        saveTransferListToLocal(); updateTransferListUI();
+    } catch (e) { alert("❌ 修改失敗。"); }
+};
+
+window.voidTransferItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) { alert("❌ 資料尚未同步。"); return; }
+    const voidReason = prompt("🚨【調撥作廢】\n請輸入作廢理由：");
+    if (!voidReason || !voidReason.trim()) return;
+
+    const target = transferList.find(i => i.id === id);
+    if(!target) return;
+
+    try {
+        const payload = {
+            action: "voidTransfer", 
             itemId: parsedId,
             voidReason: voidReason,
             operatorId: window.currentUser.empId,
@@ -363,7 +423,6 @@ window.voidTransferItem = async function(id) {
         };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        
         const responseText = await response.text();
         let result = {};
         try { result = JSON.parse(responseText); } catch (e) {}
@@ -372,27 +431,22 @@ window.voidTransferItem = async function(id) {
         if (result.newVoidReason) target.voidReason = result.newVoidReason;
         else target.voidReason = voidReason;
         
-        saveTransferListToLocal();
-        updateRecentListUI();
-        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        saveTransferListToLocal(); updateTransferListUI();
         alert("✅ 紀錄已作廢！");
     } catch (e) { alert("❌ 作廢失敗。"); }
 };
 
-// ==========================================
-// 調撥復原
-// ==========================================
 window.restoreTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
     const restoreReason = prompt("♻️ 請輸入取消作廢的理由：");
     if(!restoreReason) return; 
 
-    const target = recentTransferList.find(i => i.id === id);
+    const target = transferList.find(i => i.id === id);
     if(!target) return;
 
     try {
         const payload = {
-            action: "restoreTransfer", // ✨ PA 調撥復原分支
+            action: "restoreTransfer", 
             itemId: parsedId,
             voidReason: restoreReason,
             operatorId: window.currentUser.empId,
@@ -400,7 +454,6 @@ window.restoreTransferItem = async function(id) {
         };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        
         const responseText = await response.text();
         let result = {};
         try { result = JSON.parse(responseText); } catch (e) {}
@@ -408,25 +461,19 @@ window.restoreTransferItem = async function(id) {
         target.recordStatus = "正常";
         if (result.newVoidReason) target.voidReason = result.newVoidReason;
         
-        saveTransferListToLocal();
-        updateRecentListUI();
-        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        saveTransferListToLocal(); updateTransferListUI();
         alert("✅ 取消作廢成功！");
     } catch (e) { alert("❌ 復原失敗。"); }
 };
 
-// ==========================================
-// 調撥異常通報
-// ==========================================
 window.reportAnomalyTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { alert("❌ 資料未同步。"); return; }
-
-    const target = recentTransferList.find(i => i.id === id);
+    const target = transferList.find(i => i.id === id);
     if(!target) return;
 
     if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
-        alert(`【通報狀態】：${target.reportStatus}\n【內容】：\n${target.reportReason}\n【批示】：\n${target.managerResult || '尚未批示'}`);
+        alert(`【通報狀態】：${target.reportStatus}\n【內容】：\n${target.reportReason || '無'}\n【批示】：\n${target.managerResult || '尚未批示'}`);
         return;
     }
 
@@ -435,7 +482,7 @@ window.reportAnomalyTransferItem = async function(id) {
 
     try {
         const payload = {
-            action: "reportAnomaly", // ✨ PA 調撥通報分支
+            action: "reportAnomalyTransfer", // ✨ 注意這裡的 action 名稱
             itemId: parsedId,
             reportReason: reportReason,
             operatorId: window.currentUser.empId,
@@ -443,7 +490,6 @@ window.reportAnomalyTransferItem = async function(id) {
         };
         const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error();
-        
         const responseText = await response.text();
         let result = {};
         try { result = JSON.parse(responseText); } catch (e) {}
@@ -452,121 +498,7 @@ window.reportAnomalyTransferItem = async function(id) {
         if (result.newReportReason) target.reportReason = result.newReportReason;
         else target.reportReason = reportReason;
 
-        saveTransferListToLocal();
-        updateRecentListUI();
-        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        saveTransferListToLocal(); updateTransferListUI();
         alert("✅ 異常通報已送出！");
     } catch (e) { alert("❌ 通報失敗。"); }
-};
-
-window.editItem = async function(id, currentQty) {
-    // 🛡️ 防呆 1：檢查 ID 是否為有效數字
-    const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) {
-        alert("❌ 無效的資料庫 ID！這可能是測試模式殘留的資料，請重新刷入一筆新資料進行測試。");
-        return;
-    }
-
-    const inputStr = prompt("請輸入修改後的數量：", currentQty);
-    if(inputStr === null) return;
-    
-    const newQty = parseInt(inputStr);
-    if(isNaN(newQty) || newQty <= 0 || newQty === currentQty) return;
-
-    const target = recentTransferList.find(i => i.id === id);
-    if(!target) return;
-
-    try {
-        // ✨ 完美對齊 Power Automate 結構，過濾掉前端專用的時間戳記
-        const payload = {
-            action: "update",
-            itemId: parsedId,
-            mode: target.mode || "",
-            raw: target.raw || "",
-            patientNo: target.patientNo || "",
-            prescribeNo: target.prescribeNo || "",
-            drugCode: target.drugCode || "",
-            sap: target.sap || "",
-            drugName: target.drugName || "",
-            quantity: newQty,
-            outDept: target.outDept || "",
-            inDept: target.inDept || "",
-            operatorId: target.operatorId || "",
-            operatorName: target.operatorName || "",
-            remark: target.remark || ""
-        };
-
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) throw new Error(`伺服器回傳 ${response.status}`);
-        
-        // 更新成功，修改本地記憶並存檔
-        target.quantity = newQty;
-        saveTransferListToLocal();
-        updateRecentListUI();
-        
-    } catch (e) {
-        alert("❌ 更新失敗，請檢查網路狀態。\n(錯誤原因: " + e.message + ")");
-        console.error(e);
-    } finally {
-        focusCorrectInput(); 
-    }
-};
-
-window.deleteItem = async function(id) {
-    // 🛡️ 防呆 1：檢查 ID 是否為有效數字
-    const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) {
-        alert("❌ 無效的資料庫 ID！這可能是測試模式殘留的資料，請重新刷入一筆新資料進行測試。");
-        return;
-    }
-
-    if(!confirm("確定要將此筆紀錄從資料庫刪除嗎？")) return;
-
-    const target = recentTransferList.find(i => i.id === id);
-    if(!target) return;
-
-    try {
-        // ✨ 完美對齊 Power Automate 結構
-        const payload = {
-            action: "delete",
-            itemId: parsedId,
-            mode: target.mode || "",
-            raw: target.raw || "",
-            patientNo: target.patientNo || "",
-            prescribeNo: target.prescribeNo || "",
-            drugCode: target.drugCode || "",
-            sap: target.sap || "",
-            drugName: target.drugName || "",
-            quantity: target.quantity || 0,
-            outDept: target.outDept || "",
-            inDept: target.inDept || "",
-            operatorId: target.operatorId || "",
-            operatorName: target.operatorName || "",
-            remark: target.remark || ""
-        };
-
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) throw new Error(`伺服器回傳 ${response.status}`);
-        
-        // 刪除成功，從陣列剔除並存檔
-        recentTransferList = recentTransferList.filter(item => item.id !== id);
-        saveTransferListToLocal();
-        updateRecentListUI();
-        
-    } catch (e) {
-        alert("❌ 刪除失敗，請檢查網路狀態。\n(錯誤原因: " + e.message + ")");
-        console.error(e);
-    } finally {
-        focusCorrectInput(); 
-    }
 };
