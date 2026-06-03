@@ -341,52 +341,123 @@ async function handleManualQtyEnter(e) {
 }
 
 // ==========================================
-// 8. 右側清單渲染與 (修改/刪除) API 串接
+// 調撥作廢 
 // ==========================================
-function updateRecentListUI() {
-    const listDiv = document.getElementById('recentList');
-    const queueCount = document.getElementById('queueCount');
-    if (queueCount) queueCount.innerText = `${recentTransferList.length} 筆`;
-    
-    if(recentTransferList.length === 0) {
-        listDiv.innerHTML = '<div class="text-center text-muted mt-5">目前無資料</div>';
+window.voidTransferItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) { alert("❌ 資料未同步。"); return; }
+
+    const voidReason = prompt("🚨【調撥作廢】\n請輸入作廢理由：");
+    if (!voidReason || !voidReason.trim()) return;
+
+    const target = recentTransferList.find(i => i.id === id); // 確保陣列名稱是 recentTransferList
+    if(!target) return;
+
+    try {
+        const payload = {
+            action: "voidTransfer", // ✨ PA 調撥作廢分支
+            itemId: parsedId,
+            voidReason: voidReason,
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+        const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
+        
+        const responseText = await response.text();
+        let result = {};
+        try { result = JSON.parse(responseText); } catch (e) {}
+
+        target.recordStatus = "已作廢";
+        if (result.newVoidReason) target.voidReason = result.newVoidReason;
+        else target.voidReason = voidReason;
+        
+        saveTransferListToLocal();
+        updateRecentListUI();
+        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        alert("✅ 紀錄已作廢！");
+    } catch (e) { alert("❌ 作廢失敗。"); }
+};
+
+// ==========================================
+// 調撥復原
+// ==========================================
+window.restoreTransferItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    const restoreReason = prompt("♻️ 請輸入取消作廢的理由：");
+    if(!restoreReason) return; 
+
+    const target = recentTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    try {
+        const payload = {
+            action: "restoreTransfer", // ✨ PA 調撥復原分支
+            itemId: parsedId,
+            voidReason: restoreReason,
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+        const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
+        
+        const responseText = await response.text();
+        let result = {};
+        try { result = JSON.parse(responseText); } catch (e) {}
+
+        target.recordStatus = "正常";
+        if (result.newVoidReason) target.voidReason = result.newVoidReason;
+        
+        saveTransferListToLocal();
+        updateRecentListUI();
+        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        alert("✅ 取消作廢成功！");
+    } catch (e) { alert("❌ 復原失敗。"); }
+};
+
+// ==========================================
+// 調撥異常通報
+// ==========================================
+window.reportAnomalyTransferItem = async function(id) {
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) { alert("❌ 資料未同步。"); return; }
+
+    const target = recentTransferList.find(i => i.id === id);
+    if(!target) return;
+
+    if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
+        alert(`【通報狀態】：${target.reportStatus}\n【內容】：\n${target.reportReason}\n【批示】：\n${target.managerResult || '尚未批示'}`);
         return;
     }
 
-    listDiv.innerHTML = '';
+    const reportReason = prompt("⚠️ 【異常通報】\n請描述調撥異常狀況：");
+    if (!reportReason || !reportReason.trim()) return;
 
-    recentTransferList.forEach(item => {
-        const html = `
-            <div class="card queue-card mb-2 p-3 shadow-sm border-0 border-start border-4 border-primary">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <span class="badge bg-secondary me-2">${item.mode}</span>
-                        <strong class="text-dark">${item.drugCode} <small class="text-muted fw-normal ms-1">(${item.sap})</small></strong>
-                        ${item.prescribeNo ? `<span class="badge bg-info text-dark ms-2">領藥號: ${item.prescribeNo}</span>` : ''}
-                    </div>
-                    <small class="text-muted" style="font-size: 0.75rem;">${item.timestamp}</small>
-                </div>
-                <div class="fw-bold text-dark mb-2">${item.drugName}</div>
-                ${item.remark ? `<div class="small text-danger mb-2">備註：${item.remark}</div>` : ''}
-                
-                <div class="row align-items-end mt-1">
-                    <div class="col-7 small text-muted">
-                        <div>👤 ${item.operatorName} (${item.operatorId})</div>
-                        <div>🔄 ${item.outDept} ➔ ${item.inDept}</div>
-                    </div>
-                    <div class="col-5 text-end d-flex align-items-center justify-content-end">
-                        <strong class="fs-5 text-primary me-3">Qty: ${item.quantity}</strong>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="window.editItem('${item.id}', ${item.quantity})">✏️</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="window.deleteItem('${item.id}')">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        listDiv.insertAdjacentHTML('beforeend', html);
-    });
-}
+    try {
+        const payload = {
+            action: "reportAnomaly", // ✨ PA 調撥通報分支
+            itemId: parsedId,
+            reportReason: reportReason,
+            operatorId: window.currentUser.empId,
+            operatorName: window.currentUser.name
+        };
+        const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error();
+        
+        const responseText = await response.text();
+        let result = {};
+        try { result = JSON.parse(responseText); } catch (e) {}
+
+        target.reportStatus = "未處理";
+        if (result.newReportReason) target.reportReason = result.newReportReason;
+        else target.reportReason = reportReason;
+
+        saveTransferListToLocal();
+        updateRecentListUI();
+        if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        alert("✅ 異常通報已送出！");
+    } catch (e) { alert("❌ 通報失敗。"); }
+};
 
 window.editItem = async function(id, currentQty) {
     // 🛡️ 防呆 1：檢查 ID 是否為有效數字
