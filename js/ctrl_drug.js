@@ -299,7 +299,7 @@ async function handleCtrlManualQtyEnter(e) {
 }
 
 // ==========================================
-// 5. 萬能背景寫入 API (地端優先)
+// 萬能背景寫入 API (地端優先)
 // ==========================================
 async function processCtrlEntry(data) {
     if (!window.ctrlCurrentOperator || !window.ctrlCurrentOperator.empId) {
@@ -314,6 +314,7 @@ async function processCtrlEntry(data) {
         return false;
     }
 
+    // ✨ 這裡就是 Payload (要傳給 Power Automate 的資料包裹)
     const payload = {
         action: "createCtrl",
         itemId: 0,
@@ -327,6 +328,8 @@ async function processCtrlEntry(data) {
         raw: data.raw,
         patientNo: data.patientNo,
         prescribeNo: data.prescribeNo,
+        prescribeDate: data.prescribeDate || "", // ✨ 已經幫你把處方日期放進包裹了
+        returnNo: data.returnNo || "",           // ✨ 已經幫你把退藥號放進包裹了
         operatorId: window.ctrlCurrentOperator.empId,
         operatorName: window.ctrlCurrentOperator.name,
         remark: remarkValue,
@@ -344,7 +347,6 @@ async function processCtrlEntry(data) {
 
     const overlay = document.getElementById('ctrlLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
-
     pendingUploads++; 
 
     fetch(CTRL_API_URL, { 
@@ -360,27 +362,24 @@ async function processCtrlEntry(data) {
             target.id = result.newId.toString();
             saveCtrlListToLocal();
             updateCtrlListUI(); 
+            if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
         }
     })
     .catch((error) => {
         console.error("❌ 管藥拋轉失敗", error);
         alert("⚠️ 雲端同步失敗！請檢查網路，此筆資料暫存於本機。");
-        const card = document.getElementById(`ctrl-card-${payload.id}`);
-        if(card) card.classList.add('border-warning', 'bg-warning', 'bg-opacity-10');
     })
     .finally(() => {
         pendingUploads--; 
         if (overlay) overlay.classList.add('hidden');
-        
-        // ✨ 結帳完畢後的游標路由判斷
         if (window.workMode === 'public') {
-            setCtrlOperator('', ''); // 公用模式：清空藥師
+            setCtrlOperator('', ''); 
             setTimeout(() => {
                 const opInput = document.getElementById('ctrlOperatorSearchInput');
                 if(opInput) opInput.focus();
             }, 100);
         } else {
-            focusCorrectCtrlInput(); // 個人模式：留在原本輸入框
+            focusCorrectCtrlInput(); 
         }
     });
 
