@@ -103,7 +103,7 @@ window.showTransDetailPopup = function(id) {
 };
 
 // ==========================================
-// 核心：全頁大表 UI 渲染
+// 核心：全頁大表 UI 渲染 (已修復作業方式殘留 Bug)
 // ==========================================
 window.updateTransHistoryTableUI = function() {
     const tbody = document.getElementById('transHistTableBody');
@@ -113,9 +113,10 @@ window.updateTransHistoryTableUI = function() {
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
     const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
+    
+    // 🚨 已經將 actionSelect 刪除，不會再報錯了！
     const statusSelect = document.getElementById('transHistStatusSelect').value;
 
-    // ✨ 4. 取得雙向單位篩選器的值
     const filterOutDept = document.getElementById('transHistOutDept').value;
     const filterInDept = document.getElementById('transHistInDept').value;
 
@@ -125,7 +126,7 @@ window.updateTransHistoryTableUI = function() {
     if (typeof transferList === 'undefined') return;
 
     const filtered = transferList.filter(item => {
-        // ✨ 5. 撥出/撥入 單位過濾 (取代舊的單一單位過濾)
+        // 雙向單位過濾
         if (filterOutDept !== '全部' && item.outDept !== filterOutDept) return false;
         if (filterInDept !== '全部' && item.inDept !== filterInDept) return false;
         
@@ -141,7 +142,9 @@ window.updateTransHistoryTableUI = function() {
             const uname = (item.operatorName || "").toUpperCase();
             if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
         }
-
+        
+        // 🚨 這裡也同步移除了 actionSelect 的過濾邏輯
+        
         const currentStatus = item.recordStatus || "正常";
         if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
         return true;
@@ -170,7 +173,6 @@ window.updateTransHistoryTableUI = function() {
         const reportBtnClass = (isReported || isResolved) ? 'btn-outline-warning text-dark fw-bold' : 'btn-outline-secondary';
         const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
 
-        // ✨ 6. 組合明細文字，並將它存入保險箱 (不再硬塞進 HTML tag 裡面)
         let detailHtml = ``;
         if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${item.operatorName || '未知'})<br><span class="text-secondary">${item.remark}</span></div>`;
         if (item.voidReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>🗑️【作廢軌跡】</strong> (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})<br><span class="text-danger">${item.voidReason}</span></div>`;
@@ -178,7 +180,6 @@ window.updateTransHistoryTableUI = function() {
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
 
-        // 將這筆紀錄的明細，用 item.id 當作鑰匙，存入記憶體保險箱
         window.transDetailCache[item.id] = detailHtml;
 
         html += `
