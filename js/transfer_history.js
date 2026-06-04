@@ -103,8 +103,8 @@ window.fetchTransHistoryFromDB = async function() {
     const tbody = document.getElementById('transHistTableBody');
     if (!tbody) return;
 
-    // 顯示載入動畫
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary me-2" role="status"></div><b class="text-primary fs-5">連線至 SharePoint 讀取即時資料中...</b></td></tr>`;
+// 顯示載入動畫 (✨ 已套用主題色)
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-theme me-2" role="status"></div><b class="text-theme fs-5">連線至 SharePoint 讀取即時資料中...</b></td></tr>`;
 
     try {
         const response = await fetch(GET_API_URL + "&action=getHistory", { method: 'GET' });
