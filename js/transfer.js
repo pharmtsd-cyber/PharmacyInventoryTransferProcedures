@@ -422,13 +422,15 @@ function updateTransferListUI() {
 }
 
 // ==========================================
-// 8. 修改 / 作廢 / 復原 / 通報 API 串接
+// 8. 修改 / 作廢 / 復原 / 通報 API 串接 (支援本地與雲端資料雙向查找)
 // ==========================================
 window.editTransferItem = async function(id, currentQty) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
     
-    const target = transferList.find(i => i.id === id);
+    // ✨ 同時在本地記憶和 API 暫存中尋找這筆資料
+    let target = transferList.find(i => String(i.id) === String(id));
+    if (!target && window.transApiDataCache) target = window.transApiDataCache.find(i => String(i.id) === String(id));
     if(!target) return;
 
     const recordInfo = `<div class="text-start p-3 bg-light rounded border mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🔄 單位：</strong>${target.outDept} ➔ ${target.inDept}</div>`;
@@ -453,7 +455,10 @@ window.editTransferItem = async function(id, currentQty) {
         if (!response.ok) throw new Error();
         
         target.quantity = parseInt(newQty, 10); target.timestamp = new Date().toLocaleString() + " (已修改)";
-        saveTransferListToLocal(); updateTransferListUI();
+        
+        if (transferList.find(i => String(i.id) === String(id))) { saveTransferListToLocal(); updateTransferListUI(); }
+        if (typeof window.fetchTransHistoryFromDB === 'function') window.fetchTransHistoryFromDB();
+        
         Swal.fire({ title: '修改成功', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch (e) { Swal.fire('錯誤', '修改失敗。', 'error'); }
 };
@@ -462,7 +467,8 @@ window.voidTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
     
-    const target = transferList.find(i => i.id === id);
+    let target = transferList.find(i => String(i.id) === String(id));
+    if (!target && window.transApiDataCache) target = window.transApiDataCache.find(i => String(i.id) === String(id));
     if(!target) return;
 
     const recordInfo = `<div class="text-start p-3 bg-danger bg-opacity-10 rounded border border-danger mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🔢 數量：</strong>${target.quantity}<br><strong>🔄 流向：</strong>${target.outDept} ➔ ${target.inDept}</div>`;
@@ -489,14 +495,17 @@ window.voidTransferItem = async function(id) {
         target.recordStatus = "已作廢";
         if (result.newVoidReason) target.voidReason = result.newVoidReason; else target.voidReason = voidReason;
         
-        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        if (transferList.find(i => String(i.id) === String(id))) { saveTransferListToLocal(); updateTransferListUI(); }
+        if (typeof window.fetchTransHistoryFromDB === 'function') window.fetchTransHistoryFromDB();
+        
         Swal.fire({ title: '已作廢', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch (e) { Swal.fire('錯誤', '作廢失敗。', 'error'); }
 };
 
 window.restoreTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    const target = transferList.find(i => i.id === id);
+    let target = transferList.find(i => String(i.id) === String(id));
+    if (!target && window.transApiDataCache) target = window.transApiDataCache.find(i => String(i.id) === String(id));
     if(!target) return;
 
     const recordInfo = `<div class="text-start p-3 bg-light rounded border border-success mb-3"><strong>📦 藥品：</strong>${target.drugName}<br><strong>🗑️ 原作廢理由：</strong>${target.voidReason}</div>`;
@@ -523,7 +532,9 @@ window.restoreTransferItem = async function(id) {
         target.recordStatus = "正常";
         if (result.newVoidReason) target.voidReason = result.newVoidReason;
         
-        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        if (transferList.find(i => String(i.id) === String(id))) { saveTransferListToLocal(); updateTransferListUI(); }
+        if (typeof window.fetchTransHistoryFromDB === 'function') window.fetchTransHistoryFromDB();
+        
         Swal.fire({ title: '復原成功', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch (e) { Swal.fire('錯誤', '復原失敗。', 'error'); }
 };
@@ -531,7 +542,9 @@ window.restoreTransferItem = async function(id) {
 window.reportAnomalyTransferItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
-    const target = transferList.find(i => i.id === id);
+    
+    let target = transferList.find(i => String(i.id) === String(id));
+    if (!target && window.transApiDataCache) target = window.transApiDataCache.find(i => String(i.id) === String(id));
     if(!target) return;
 
     if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
@@ -563,7 +576,9 @@ window.reportAnomalyTransferItem = async function(id) {
         target.reportStatus = "未處理";
         if (result.newReportReason) target.reportReason = result.newReportReason; else target.reportReason = reportReason;
 
-        saveTransferListToLocal(); updateTransferListUI(); if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
+        if (transferList.find(i => String(i.id) === String(id))) { saveTransferListToLocal(); updateTransferListUI(); }
+        if (typeof window.fetchTransHistoryFromDB === 'function') window.fetchTransHistoryFromDB();
+        
         Swal.fire({ title: '通報已送出', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch (e) { Swal.fire('錯誤', '通報失敗。', 'error'); }
 };
