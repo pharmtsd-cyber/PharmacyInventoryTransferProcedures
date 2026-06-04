@@ -111,6 +111,17 @@ window.initCtrlHistorySection = function() {
     }
 };
 
+// ✨ 管藥共用精美明細彈窗函數
+window.showCtrlDetailPopup = function(encodedHtml) {
+    Swal.fire({
+        title: '📋 管制藥紀錄明細',
+        html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${decodeURIComponent(encodedHtml)}</div>`,
+        icon: 'info',
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: '關閉'
+    });
+};
+
 window.updateCtrlHistoryTableUI = function() {
     const tbody = document.getElementById('ctrlHistTableBody');
     if (!tbody) return;
