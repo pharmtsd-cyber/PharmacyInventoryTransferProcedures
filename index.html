@@ -70,7 +70,7 @@
         
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
-            
+            <li class="nav-item"><a class="nav-link text-primary fw-bold" data-tab="transfer-history" href="#">📊 調撥全頁紀錄</a></li>
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-history" href="#">📊 1-3級管藥紀錄</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
@@ -142,11 +142,21 @@
                     </div>
 
                     <div id="manualSection" class="mb-3 hidden position-relative">
+                        <label class="form-label fw-bold small text-secondary">🔍 模糊搜尋藥品 (支援鍵盤上下選取)</label>
                         <input type="text" class="form-control form-control-lg border-dark" id="drugSearchInput" placeholder="輸入代碼、學名或 SAP 碼搜尋..." autocomplete="off">
                         <div id="autocomplete-list" class="autocomplete-items shadow w-100"></div>
-                        <div id="manualQtySection" class="mt-3 row g-2 hidden">
-                            <div class="col-8"><input type="text" class="form-control bg-light border-secondary" id="manualSelectedDrug" readonly></div>
-                            <div class="col-4">
+                        
+                        <div id="manualQtySection" class="mt-3 row g-2 hidden p-3 bg-light border rounded">
+                            <div class="col-12 mb-2">
+                                <span class="badge bg-primary">手動選定</span> 
+                                <strong class="text-dark ms-2" id="manualSelectedDrug"></strong>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-primary">📅 處方日期</label>
+                                <input type="date" class="form-control form-control-sm border-primary" id="manualPrescribeDate">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold small text-primary">🔢 調劑數量 (Enter送出)</label>
                                 <input type="number" class="form-control border-primary shadow-sm" id="manualQtyInput" placeholder="數量(按Enter建檔)" min="1">
                             </div>
                         </div>
@@ -216,12 +226,40 @@
                     </div>
 
                     <div id="ctrlManualSection" class="mb-3 hidden position-relative">
-                        <input type="text" class="form-control form-control-lg border-danger" id="ctrlDrugSearchInput" placeholder="輸入管藥代碼、藥名或 SAP 碼搜尋..." autocomplete="off">
-                        <div id="ctrl-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050;"></div>
-                        <div id="ctrlManualQtySection" class="mt-3 row g-2 hidden">
-                            <div class="col-8"><input type="text" class="form-control bg-light border-secondary" id="ctrlManualSelectedDrug" readonly></div>
-                            <div class="col-4">
-                                <input type="number" class="form-control border-danger shadow-sm" id="ctrlManualQtyInput" placeholder="數量(Enter建檔)" min="1">
+                        <div class="row g-2 position-relative">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small text-secondary">🔍 模糊搜尋藥品 (支援鍵盤上下選取)</label>
+                                <input type="text" class="form-control form-control-lg border-danger" id="ctrlDrugSearchInput" placeholder="輸入管藥代碼、藥名或 SAP 碼搜尋..." autocomplete="off">
+                                <div id="ctrl-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050;"></div>
+                            </div>
+                        </div>
+
+                        <div id="ctrlManualQtySection" class="row g-2 mt-2 hidden p-3 bg-light border rounded">
+                            <div class="col-12 mb-1">
+                                <span class="badge bg-danger">手動選定</span> 
+                                <strong class="text-dark ms-2" id="ctrlManualSelectedDrug"></strong>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-danger">📅 處方日期</label>
+                                <input type="date" class="form-control form-control-sm border-danger" id="ctrlManualPrescribeDate">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-danger">🏥 病歷號</label>
+                                <input type="text" class="form-control form-control-sm border-danger" id="ctrlManualPatientNo" placeholder="病歷號">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-danger">🧾 領藥號</label>
+                                <input type="text" class="form-control form-control-sm border-danger" id="ctrlManualPrescribeNo" placeholder="領藥號">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-secondary">🔙 退藥號</label>
+                                <input type="text" class="form-control form-control-sm" id="ctrlManualReturnNo" placeholder="退藥號(非必填)">
+                            </div>
+
+                            <div class="col-md-12 mt-3">
+                                <label class="form-label fw-bold small text-danger">🔢 調劑數量 (Enter送出)</label>
+                                <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlManualQtyInput" placeholder="輸入絕對數量，按下 Enter 寫入">
                             </div>
                         </div>
                     </div>
@@ -244,6 +282,78 @@
                     </div>
                 </div>
             </div> </div> ```
+
+        <div id="content-transfer-history" class="hidden">
+            <div class="card academic-card p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-primary fw-bold mb-0">📊 一般藥品調撥紀錄表</h5>
+                </div>
+                
+                <div class="row g-2 mb-4 bg-light p-3 border border-primary rounded align-items-end">
+                    <div class="col-xl-1 col-md-2">
+                        <label class="form-label fw-bold small text-primary">📍 調劑單位</label>
+                        <input type="text" class="form-control form-control-sm border-primary bg-white text-center fw-bold text-secondary" id="transHistStationDisplay" value="鎖定中" readonly disabled>
+                    </div>
+                    <div class="col-xl-2 col-md-2">
+                        <label class="form-label fw-bold small text-primary">📅 開始日期</label>
+                        <input type="date" class="form-control form-control-sm border-primary" id="transHistStartDate">
+                    </div>
+                    <div class="col-xl-2 col-md-2">
+                        <label class="form-label fw-bold small text-primary">📅 結束日期</label>
+                        <input type="date" class="form-control form-control-sm border-primary" id="transHistEndDate">
+                    </div>
+                    <div class="col-xl-2 col-md-2 position-relative">
+                        <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="transHistDrugSearch" placeholder="輸入藥碼或藥名..." autocomplete="off">
+                        <div id="trans-hist-drug-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-2 col-md-2 position-relative">
+                        <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="transHistOpSearch" placeholder="輸入姓名或員編..." autocomplete="off">
+                        <div id="trans-hist-op-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-1 col-md-2">
+                        <label class="form-label fw-bold small text-secondary">📋 作業方式</label>
+                        <select class="form-select form-select-sm border-secondary" id="transHistActionSelect">
+                            <option value="全部">全部項目</option>
+                            <option value="調出">調出</option>
+                            <option value="調入">調入</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-1 col-md-1">
+                        <label class="form-label fw-bold small text-secondary">⚖️ 帳目狀態</label>
+                        <select class="form-select form-select-sm border-secondary" id="transHistStatusSelect">
+                            <option value="全部">全部</option>
+                            <option value="正常">正常</option>
+                            <option value="已作廢">已作廢</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-1 col-md-1">
+                        <button class="btn btn-primary btn-sm w-100 fw-bold shadow-sm" id="transHistSearchBtn">🔍 篩選</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                        <thead class="table-primary text-dark fw-bold sticky-top" style="z-index: 5;">
+                            <tr>
+                                <th style="width: 12%;">調劑時間</th>
+                                <th style="width: 10%;">作業項目</th>
+                                <th style="width: 12%;">藥品代碼</th>
+                                <th>藥品名稱</th>
+                                <th style="width: 8%;">異動數量</th>
+                                <th style="width: 12%;">調劑藥師</th>
+                                <th style="width: 10%;">狀態 ／ 備註</th>
+                                <th style="width: 12%;">編輯 ／ 作廢</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transHistTableBody">
+                            <tr><td colspan="8" class="text-muted py-4">請點擊篩選按鈕載入操作清單</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
         
         <div id="content-receive" class="card academic-card p-5 hidden text-center"><h4 class="academic-title">接收通知作業區</h4></div>
         <div id="content-ctrl-history" class="hidden">
