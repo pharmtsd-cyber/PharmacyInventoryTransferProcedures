@@ -121,7 +121,7 @@ window.fetchTransHistoryFromDB = async function() {
 };
 
 // ==========================================
-// ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染
+// ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染 (已修復狀態還原 Bug)
 // ==========================================
 window.renderTransHistoryTableUI = function() {
     const tbody = document.getElementById('transHistTableBody');
@@ -158,8 +158,8 @@ window.renderTransHistoryTableUI = function() {
             if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
         }
         
-        const isVoided = !!(item.voidReason && item.voidReason.trim() !== '');
-        const currentStatus = isVoided ? "已作廢" : "正常";
+        // ✨ 修正 1：不再依賴 voidReason，直接吃後端傳來的 recordStatus
+        const currentStatus = item.recordStatus || item.RecordStatus || "正常";
         if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
         
         return true;
@@ -175,7 +175,10 @@ window.renderTransHistoryTableUI = function() {
 
     let html = '';
     filtered.forEach(item => {
-        const isVoided = !!(item.voidReason && item.voidReason.trim() !== '');
+        // ✨ 修正 2：精準判斷是否為作廢，決定是否要上灰色與刪除線
+        const currentStatus = item.recordStatus || item.RecordStatus || "正常";
+        const isVoided = (currentStatus === '已作废' || currentStatus === '已作廢');
+        
         const isQtyNegative = item.quantity < 0;
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
         
