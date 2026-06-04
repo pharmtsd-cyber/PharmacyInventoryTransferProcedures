@@ -731,7 +731,7 @@ function loadCtrlListFromLocal() {
 }
 
 // ✨ 處理模式切換時的 UI 變動
-window.applyWorkModeChange = function() {
+window.applyCtrlWorkModeChange = function() {
     if (window.workMode === 'public') {
         // 切換到公用模式：清空操作藥師，游標跳至藥師輸入框
         setCtrlOperator('', '');
