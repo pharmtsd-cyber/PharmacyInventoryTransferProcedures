@@ -7,6 +7,7 @@ const API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.ap
 let transferList = []; 
 let tempManualDrug = null;
 window.transferTimeFilter = 'today'; // 預設顯示今日紀錄
+let transCurrentFocus = -1; //
 
 // ==========================================
 // 2. 綁定網頁事件 (DOM 載入完成後執行)
@@ -254,23 +255,56 @@ async function handleBarcodeScan(e) {
         const parts = raw.split(';');
         if(parts.length >= 4) {
             const drugCode = parts[1].toUpperCase();
-            if (!window.realDrugDB || window.realDrugDB.length === 0) { alert("藥品庫未載入"); return; }
+            if (!window.realDrugDB || window.realDrugDB.length === 0) return;
             const drug = window.realDrugDB.find(d => d.code === drugCode) || { name: "未知藥品", sap: "未知" };
             
+            // ✨ 解析處方日期
+            let parsedDate = "";
+            if (parts.length >= 5 && parts[4].length >= 9) {
+                const dStr = parts[4].substring(1, 9); 
+                if (!isNaN(dStr)) parsedDate = `${dStr.substring(0,4)}-${dStr.substring(4,6)}-${dStr.substring(6,8)}`;
+            }
+            
             await processDirectEntry({
-                mode: "條碼", raw: raw, patientNo: parts[0],
-                drugCode: drugCode, sap: drug.sap, drugName: drug.name,
-                prescribeNo: parts[2], quantity: parseInt(parts[3]) || 0
+                mode: "條碼", raw: raw, patientNo: parts[0], prescribeNo: parts[2], prescribeDate: parsedDate,
+                drugCode: drugCode, sap: drug.sap, drugName: drug.name, quantity: parseInt(parts[3]) || 0
             });
         } else { alert("❌ 條碼格式錯誤"); }
         this.value = ''; setTimeout(() => this.focus(), 10);
     }
 }
 
+// ✨ 鍵盤控制邏輯
+document.addEventListener('DOMContentLoaded', () => {
+    const drugSearchInput = document.getElementById('drugSearchInput');
+    if (drugSearchInput) {
+        drugSearchInput.addEventListener('keydown', function(e) {
+            let list = document.getElementById('autocomplete-list');
+            if (list) list = list.getElementsByTagName('div');
+            if (e.key === 'ArrowDown') {
+                transCurrentFocus++; addTransActive(list);
+            } else if (e.key === 'ArrowUp') {
+                transCurrentFocus--; addTransActive(list);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (transCurrentFocus > -1 && list) list[transCurrentFocus].click();
+            }
+        });
+    }
+});
+
+function addTransActive(x) {
+    if (!x) return false;
+    for (let i = 0; i < x.length; i++) x[i].classList.remove("autocomplete-active");
+    if (transCurrentFocus >= x.length) transCurrentFocus = 0;
+    if (transCurrentFocus < 0) transCurrentFocus = (x.length - 1);
+    x[transCurrentFocus].classList.add("autocomplete-active");
+}
+
 function handleFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
     const list = document.getElementById('autocomplete-list');
-    list.innerHTML = '';
+    list.innerHTML = ''; transCurrentFocus = -1;
     if (!val || !window.realDrugDB) return; 
 
     const matches = window.realDrugDB.filter(d => 
@@ -285,7 +319,7 @@ function handleFuzzySearch(e) {
             document.getElementById('manualSelectedDrug').value = `${drug.code} - ${drug.name}`;
             document.getElementById('manualQtySection').classList.remove('hidden');
             const qtyInput = document.getElementById('manualQtyInput');
-            if (qtyInput) { qtyInput.value = ''; qtyInput.focus(); }
+            if (qtyInput) { qtyInput.value = ''; qtyInput.focus(); } // ✨ 游標自動跳轉
         });
         list.appendChild(item);
     });
