@@ -89,8 +89,8 @@ function renderHistoryUI(records) {
                             </div>
                         ` : ''}
                     </div>
-                    <div class="col-4 text-end">
-                        <button class="btn btn-sm btn-outline-danger" onclick="reportAnomaly(${item.id})" ${isReported ? 'disabled' : ''}>
+                        <div class="col-4 text-end">
+                        <button class="btn btn-sm btn-outline-danger" onclick="window.reportAnomaly('${item.id}')" ${isReported ? 'disabled' : ''}>
                             ${isReported ? '🚨 已通報' : '🚨 通報異常'}
                         </button>
                     </div>
