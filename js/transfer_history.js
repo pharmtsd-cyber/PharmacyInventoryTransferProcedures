@@ -113,7 +113,6 @@ window.updateTransHistoryTableUI = function() {
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
     const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
-    const actionSelect = document.getElementById('transHistActionSelect').value;
     const statusSelect = document.getElementById('transHistStatusSelect').value;
 
     // ✨ 4. 取得雙向單位篩選器的值
@@ -142,7 +141,7 @@ window.updateTransHistoryTableUI = function() {
             const uname = (item.operatorName || "").toUpperCase();
             if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
         }
-        if (actionSelect !== '全部' && item.actionType !== actionSelect) return false;
+
         const currentStatus = item.recordStatus || "正常";
         if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
         return true;
