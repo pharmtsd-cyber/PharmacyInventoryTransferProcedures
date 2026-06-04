@@ -72,7 +72,7 @@
         
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
-            <li class="nav-item"><a class="nav-link text-primary fw-bold" data-tab="transfer-history" href="#">📊 調撥紀錄</a></li>
+            <li class="nav-item"><a class="nav-link text-theme fw-bold" data-tab="transfer-history" href="#">📊 調撥紀錄</a></li>
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-history" href="#">📊 1-3級管藥紀錄</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
@@ -121,7 +121,7 @@
                             </div>
                             <div id="operator-autocomplete-list" class="autocomplete-items shadow w-100"></div>
                         </div>
-                        <div class="col-auto"><strong id="operatorNameDisplay" class="text-primary"></strong></div>
+                        <div class="col-auto"><strong id="operatorNameDisplay" class="text-theme"></strong></div>
                     </div>
 
                     <div class="mb-4">
@@ -150,12 +150,12 @@
                         
                         <div id="manualQtySection" class="mt-3 row g-2 hidden p-3 bg-light border rounded">
                             <div class="col-12 mb-2">
-                                <span class="badge bg-primary">手動選定</span> 
+                                <span class="badge bg-theme">手動選定</span> 
                                 <strong class="text-dark ms-2" id="manualSelectedDrug"></strong>
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label fw-bold small text-primary">🔢 調劑數量 (Enter送出)</label>
-                                <input type="number" class="form-control border-primary shadow-sm fs-5 fw-bold" id="manualQtyInput" placeholder="輸入絕對數量 (按 Enter 建檔)" min="1">
+                                <input type="number" class="form-control border-theme shadow-sm fs-5 fw-bold" id="manualQtyInput" placeholder="輸入絕對數量 (按 Enter 建檔)" min="1">
                             </div>
                         </div>
                     </div>
@@ -163,17 +163,17 @@
             </div>
 
             <div class="col-lg-5">
-                <div class="d-flex justify-content-between align-items-center border-bottom border-primary pb-2 mb-3">
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-theme pb-2 mb-3">
                         <div class="d-flex align-items-center gap-2">
-                            <h5 class="text-primary fw-bold mb-0" id="transferListTitle">今日調撥操作紀錄</h5>
+                            <h5 class="text-theme fw-bold mb-0" id="transferListTitle">今日調撥操作紀錄</h5>
                             <div class="btn-group btn-group-sm" role="group">
                                 <input type="radio" class="btn-check" name="transferTimeFilter" id="transferTimeToday" checked>
-                                <label class="btn btn-outline-primary px-2 py-0" for="transferTimeToday" style="font-size: 0.75rem;">今日</label>
+                                <label class="btn btn-outline-theme px-2 py-0" for="transferTimeToday" style="font-size: 0.75rem;">今日</label>
                                 <input type="radio" class="btn-check" name="transferTimeFilter" id="transferTimeTwoDays">
-                                <label class="btn btn-outline-primary px-2 py-0" for="transferTimeTwoDays" style="font-size: 0.75rem;">近兩日</label>
+                                <label class="btn btn-outline-theme px-2 py-0" for="transferTimeTwoDays" style="font-size: 0.75rem;">近兩日</label>
                             </div>
                         </div>
-                        <span class="badge bg-primary fs-6" id="queueCount">0 筆</span>
+                        <span class="badge bg-theme fs-6" id="queueCount">0 筆</span>
                     </div>
                     
                     <div id="recentList" class="flex-grow-1" style="max-height: 600px; overflow-y: auto; padding-right: 5px;">
@@ -291,13 +291,13 @@
         <div id="content-transfer-history" class="hidden">
             <div class="card academic-card p-4 bg-white">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <h5 class="text-primary fw-bold mb-0">📊 一般藥品調撥紀錄表</h5>
+                    <h5 class="text-theme fw-bold mb-0">📊 一般藥品調撥紀錄表</h5>
                 </div>
                 
-                <div class="row g-2 mb-1 bg-light p-3 border border-primary rounded align-items-end border-bottom-0 rounded-bottom-0">
+                <div class="row g-2 mb-1 bg-light p-3 border border-theme rounded align-items-end border-bottom-0 rounded-bottom-0">
                     <div class="col-xl-3 col-md-3">
-                        <label class="form-label fw-bold small text-primary">📤 撥出單位</label>
-                        <select class="form-select form-select-sm border-primary" id="transHistOutDept">
+                        <label class="form-label fw-bold small text-theme">📤 撥出單位</label>
+                        <select class="form-select form-select-sm border-theme" id="transHistOutDept">
                             <option value="全部">全部單位</option>
                             <option value="藥品管理組">藥品管理組</option>
                             <option value="門診藥局">門診藥局</option>
@@ -307,8 +307,8 @@
                         </select>
                     </div>
                     <div class="col-xl-3 col-md-3">
-                        <label class="form-label fw-bold small text-primary">📥 撥入單位</label>
-                        <select class="form-select form-select-sm border-primary" id="transHistInDept">
+                        <label class="form-label fw-bold small text-theme">📥 撥入單位</label>
+                        <select class="form-select form-select-sm border-theme" id="transHistInDept">
                             <option value="全部">全部單位</option>
                             <option value="藥品管理組">藥品管理組</option>
                             <option value="門診藥局">門診藥局</option>
@@ -318,21 +318,23 @@
                         </select>
                     </div>
                     <div class="col-xl-3 col-md-3">
-                        <label class="form-label fw-bold small text-primary">📅 開始日期</label>
-                        <input type="date" class="form-control form-control-sm border-primary" id="transHistStartDate">
+                        <label class="form-label fw-bold small text-theme">📅 開始日期</label>
+                        <input type="date" class="form-control form-control-sm border-theme" id="transHistStartDate">
                     </div>
                     <div class="col-xl-3 col-md-3">
-                        <label class="form-label fw-bold small text-primary">📅 結束日期</label>
-                        <input type="date" class="form-control form-control-sm border-primary" id="transHistEndDate">
+                        <label class="form-label fw-bold small text-theme">📅 結束日期</label>
+                        <input type="date" class="form-control form-control-sm border-theme" id="transHistEndDate">
                     </div>
                 </div>
 
-                <div class="row g-2 mb-4 bg-light p-3 border border-primary rounded align-items-end border-top-0 rounded-top-0">
-                    <div class="col-xl-5 col-md-5 position-relative"> <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
+                <div class="row g-2 mb-4 bg-light p-3 border border-theme rounded align-items-end border-top-0 rounded-top-0">
+                    <div class="col-xl-5 col-md-5 position-relative">
+                        <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
                         <input type="text" class="form-control form-control-sm border-secondary" id="transHistDrugSearch" placeholder="輸入藥碼或藥名..." autocomplete="off">
                         <div id="trans-hist-drug-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
                     </div>
-                    <div class="col-xl-4 col-md-4 position-relative"> <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
+                    <div class="col-xl-4 col-md-4 position-relative">
+                        <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
                         <input type="text" class="form-control form-control-sm border-secondary" id="transHistOpSearch" placeholder="輸入姓名或員編..." autocomplete="off">
                         <div id="trans-hist-op-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
                     </div>
@@ -345,13 +347,13 @@
                         </select>
                     </div>
                     <div class="col-xl-1 col-md-1">
-                        <button class="btn btn-primary btn-sm w-100 fw-bold shadow-sm" id="transHistSearchBtn">🔍 篩選</button>
+                        <button class="btn btn-theme btn-sm w-100 fw-bold shadow-sm" id="transHistSearchBtn">🔍 篩選</button>
                     </div>
                 </div>
 
                 <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
                     <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
-                        <thead class="table-primary text-dark fw-bold sticky-top" style="z-index: 5;">
+                        <thead class="table-theme fw-bold sticky-top" style="z-index: 5;">
                             <tr>
                                 <th style="width: 12%;">調劑時間</th>
                                 <th style="width: 10%;">作業項目</th>
