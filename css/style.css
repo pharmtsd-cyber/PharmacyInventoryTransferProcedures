@@ -98,9 +98,51 @@ body {
     border-left-width: 4px;
 }
 
-/* 動態共用字體與背景色 */
+/* ================= 動態共用主題色彩兵器庫 ================= */
 .text-theme { color: var(--theme-primary) !important; }
-.bg-theme { background-color: var(--theme-primary) !important; color: white; }
+.bg-theme { background-color: var(--theme-primary) !important; color: #ffffff !important; }
+.border-theme { border-color: var(--theme-primary) !important; }
+
+/* 按鈕變色 */
+.btn-theme { 
+    background-color: var(--theme-primary) !important; 
+    border-color: var(--theme-primary) !important; 
+    color: #ffffff !important; 
+}
+.btn-theme:hover { 
+    background-color: var(--theme-hover) !important; 
+    color: #ffffff !important; 
+}
+
+/* 邊框按鈕變色 (如今日/近兩日) */
+.btn-outline-theme { 
+    color: var(--theme-primary) !important; 
+    border-color: var(--theme-primary) !important; 
+    background-color: transparent !important; 
+}
+.btn-outline-theme:hover, .btn-check:checked + .btn-outline-theme { 
+    background-color: var(--theme-primary) !important; 
+    color: #ffffff !important; 
+}
+
+/* 表格標頭變色 */
+.table-theme {
+    background-color: var(--theme-primary) !important;
+    color: #ffffff !important;
+    border-color: var(--theme-hover) !important;
+}
+.table-theme th, .table-theme td {
+    background-color: var(--theme-primary) !important;
+    color: #ffffff !important;
+}
+
+/* ✨ 更新：讓頁籤選中時吃動態變數 */
+.academic-tabs .nav-link[data-tab="transfer"].active,
+.academic-tabs .nav-link[data-tab="transfer-history"].active {
+    background-color: var(--theme-primary) !important;
+    color: #ffffff !important;
+    border-color: var(--theme-primary) !important;
+}
 
 /* 模糊搜尋下拉選單 */
 .autocomplete-items {
