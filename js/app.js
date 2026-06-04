@@ -37,8 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('workModeLabel').innerText = e.target.checked ? '🌍 公用機台模式' : '🔒 個人鎖定模式';
             
             // 通知各模組因應模式改變游標與狀態
-            if(typeof window.applyWorkModeChange === 'function') {
-                window.applyWorkModeChange();
+            if(typeof window.applyTransWorkModeChange === 'function') {
+                window.applyTransWorkModeChange(); // 通知調撥模組
+            }
+            if(typeof window.applyCtrlWorkModeChange === 'function') {
+                window.applyCtrlWorkModeChange();  // 通知管藥模組
             }
         });
     }    
@@ -77,6 +80,7 @@ function applyTheme(station) {
     if (station.includes('門診')) document.body.classList.add('theme-opd');
     else if (station.includes('急診')) document.body.classList.add('theme-er');
     else if (station.includes('住院')) document.body.classList.add('theme-ipd');
+    else if (station.includes('調配')) document.body.classList.add('theme-prep'); // ✨ 支援調配藥局
     else document.body.classList.add('theme-store');
 }
 
