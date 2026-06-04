@@ -184,14 +184,14 @@ window.updateCtrlHistoryTableUI = function() {
         const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
 
         // ✨ 組合「四大類別」履歷 (乾淨俐落)
-        let detailText = ``;
-        if (item.remark) detailText += `📍【作業備註】 (👤 ${item.operatorName || '未知'})\n${item.remark}\n\n`;
-        if (item.voidReason) detailText += `🗑️【作廢軌跡】 (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})\n${item.voidReason}\n\n`;
-        if (item.reportReason) detailText += `⚠️【異常通報】 (👤 ${item.reportName || '未知'} - ${item.reportEmpID || ''})\n狀態：${item.reportStatus || '未處理'}\n內容：${item.reportReason}\n\n`;
-        if (item.managerResult) detailText += `🛡️【主管批示】 (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})\n${item.managerResult}\n`;
-        if (!detailText) detailText = "目前無任何備註或通報紀錄。";
-        
-        const safeDetail = detailText.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
+        let detailHtml = ``;
+        if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${item.operatorName || '未知'})<br><span class="text-secondary">${item.remark}</span></div>`;
+        if (item.voidReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>🗑️【作廢軌跡】</strong> (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})<br><span class="text-danger">${item.voidReason}</span></div>`;
+        if (item.reportReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>⚠️【異常通報】</strong> (👤 ${item.reportName || '未知'} - ${item.reportEmpID || ''})<br>狀態：<span class="badge bg-warning text-dark">${item.reportStatus || '未處理'}</span><br><span class="text-dark">${item.reportReason}</span></div>`;
+        if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
+        if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
+
+        const safeDetail = encodeURIComponent(detailHtml);
 
         html += `
             <tr class="${rowStyle}">
@@ -218,7 +218,7 @@ window.updateCtrlHistoryTableUI = function() {
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
-                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="alert('📋 紀錄明細\\n\\n' + '${safeDetail}')">展開紀錄</button>
+                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="window.showCtrlDetailPopup('${safeDetail}')">展開紀錄</button>
                 </td>
                 <td>
                     <div class="d-flex flex-column gap-1 align-items-center">
