@@ -165,14 +165,18 @@ async function handleCtrlBarcodeScan(e) {
         const parts = raw.split(';');
         if(parts.length >= 4) {
             const scannedDrugCode = parts[1].toUpperCase();
-            const ctrlDrug = window.ctrlDrugDB.find(d => 
-                (d.drugCode && d.drugCode.toUpperCase() === scannedDrugCode) || 
-                (d.code && d.code.toUpperCase() === scannedDrugCode)
-            );
+            const ctrlDrug = window.ctrlDrugDB.find(d => (d.drugCode && d.drugCode.toUpperCase() === scannedDrugCode) || (d.code && d.code.toUpperCase() === scannedDrugCode));
             
             if (!ctrlDrug) {
-                alert(`❌ 【管藥防護阻斷】\n代碼 ${scannedDrugCode} 非核定之一到三級管制藥品！\n一般調撥品項請切換至「調撥作業」分頁。`);
+                alert(`❌ 代碼 ${scannedDrugCode} 非一到三級管制藥！`);
                 this.value = ''; return;
+            }
+
+            // ✨ 解析處方日期 (第5段，例如 I202602050917239608592)
+            let parsedDate = "";
+            if (parts.length >= 5 && parts[4].length >= 9) {
+                const dStr = parts[4].substring(1, 9); 
+                if (!isNaN(dStr)) parsedDate = `${dStr.substring(0,4)}-${dStr.substring(4,6)}-${dStr.substring(6,8)}`;
             }
 
             const actionSelect = document.getElementById('ctrlActionType');
@@ -180,31 +184,50 @@ async function handleCtrlBarcodeScan(e) {
             const inputQty = parseInt(parts[3], 10) || 0;
 
             await processCtrlEntry({
-                mode: "條碼",
-                raw: raw,
-                patientNo: parts[0],
-                prescribeNo: parts[2],
-                drugCode: ctrlDrug.drugCode || ctrlDrug.code,
-                drugName: ctrlDrug.drugName || ctrlDrug.name,
-                sapCode: ctrlDrug.sapCode || ctrlDrug.sap || "未知",
-                quantity: inputQty * sign
+                mode: "條碼", raw: raw, 
+                patientNo: parts[0], prescribeNo: parts[2], prescribeDate: parsedDate, returnNo: "",
+                drugCode: ctrlDrug.drugCode || ctrlDrug.code, drugName: ctrlDrug.drugName || ctrlDrug.name,
+                sapCode: ctrlDrug.sapCode || ctrlDrug.sap || "未知", quantity: inputQty * sign
             });
-
-        } else {
-            alert("❌ 管藥條碼格式不符 (未包含病歷號、藥碼或數量)！");
-        }
-        this.value = '';
-        setTimeout(() => this.focus(), 10);
+        } else { alert("❌ 管藥條碼格式錯誤！"); }
+        this.value = ''; setTimeout(() => this.focus(), 10);
     }
 }
 
 // ==========================================
 // 4. 手動模糊搜尋模組
 // ==========================================
+// ✨ 鍵盤控制邏輯
+document.addEventListener('DOMContentLoaded', () => {
+    const ctrlSearchInput = document.getElementById('ctrlDrugSearchInput');
+    if (ctrlSearchInput) {
+        ctrlSearchInput.addEventListener('keydown', function(e) {
+            let list = document.getElementById('ctrl-autocomplete-list');
+            if (list) list = list.getElementsByTagName('div');
+            if (e.key === 'ArrowDown') {
+                ctrlCurrentFocus++; addCtrlActive(list);
+            } else if (e.key === 'ArrowUp') {
+                ctrlCurrentFocus--; addCtrlActive(list);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (ctrlCurrentFocus > -1 && list) list[ctrlCurrentFocus].click();
+            }
+        });
+    }
+});
+
+function addCtrlActive(x) {
+    if (!x) return false;
+    for (let i = 0; i < x.length; i++) x[i].classList.remove("autocomplete-active");
+    if (ctrlCurrentFocus >= x.length) ctrlCurrentFocus = 0;
+    if (ctrlCurrentFocus < 0) ctrlCurrentFocus = (x.length - 1);
+    x[ctrlCurrentFocus].classList.add("autocomplete-active");
+}
+
 function handleCtrlFuzzySearch(e) {
     const val = e.target.value.toUpperCase();
     const list = document.getElementById('ctrl-autocomplete-list');
-    list.innerHTML = '';
+    list.innerHTML = ''; ctrlCurrentFocus = -1; // 初始化
     if (!val || !window.ctrlDrugDB) return;
 
     const matches = window.ctrlDrugDB.filter(d => {
@@ -221,13 +244,11 @@ function handleCtrlFuzzySearch(e) {
         const sap = drug.sapCode || drug.sap || "無";
         item.innerHTML = `<strong>${code}</strong> - ${name} <small class="text-muted">(${sap})</small>`;
         item.addEventListener('click', () => {
-            e.target.value = '';
-            list.innerHTML = '';
-            tempManualCtrlDrug = drug;
-            document.getElementById('ctrlManualSelectedDrug').value = `${code} - ${name}`;
+            e.target.value = ''; list.innerHTML = ''; tempManualCtrlDrug = drug;
+            document.getElementById('ctrlManualSelectedDrug').innerText = `${code} - ${name}`;
             document.getElementById('ctrlManualQtySection').classList.remove('hidden');
             const qtyInput = document.getElementById('ctrlManualQtyInput');
-            if (qtyInput) { qtyInput.value = ''; qtyInput.focus(); }
+            if (qtyInput) { qtyInput.value = ''; qtyInput.focus(); } // ✨ 游標自動跳轉
         });
         list.appendChild(item);
     });
@@ -240,20 +261,31 @@ async function handleCtrlManualQtyEnter(e) {
         if(isNaN(qty) || qty <= 0) { alert("請輸入正確數量"); return; }
 
         const actionSelect = document.getElementById('ctrlActionType');
+        const actionText = actionSelect.options[actionSelect.selectedIndex].text;
         const sign = parseInt(actionSelect.options[actionSelect.selectedIndex].dataset.sign, 10);
 
-        const code = tempManualCtrlDrug.drugCode || tempManualCtrlDrug.code;
-        const name = tempManualCtrlDrug.drugName || tempManualCtrlDrug.name;
-        const sap = tempManualCtrlDrug.sapCode || tempManualCtrlDrug.sap || "未知";
+        // ✨ 防呆：處方類必須填寫欄位
+        let pDate = document.getElementById('ctrlManualPrescribeDate').value;
+        let pPatient = document.getElementById('ctrlManualPatientNo').value.trim();
+        let pPresNo = document.getElementById('ctrlManualPrescribeNo').value.trim();
+        let pRetNo = document.getElementById('ctrlManualReturnNo').value.trim();
+
+        if (actionText.includes('處方調劑') || actionText.includes('處方刪除')) {
+            if (!pDate || !pPatient || !pPresNo) {
+                alert("❌ 【處方作業防呆】\n使用手動輸入時，必須填寫：處方日期、病歷號、領藥號！");
+                return;
+            }
+        } else {
+            // 如果不是處方作業，填補預設字眼
+            pDate = pDate || "無"; pPatient = pPatient || "手動無病歷號"; pPresNo = pPresNo || "手動無領藥號";
+        }
 
         const success = await processCtrlEntry({
-            mode: "手動",
-            raw: "手動輸入無條碼",
-            patientNo: "手動無病歷號",
-            prescribeNo: "手動無領藥號",
-            drugCode: code,
-            drugName: name,
-            sapCode: sap,
+            mode: "手動", raw: "手動輸入無條碼", 
+            patientNo: pPatient, prescribeNo: pPresNo, prescribeDate: pDate, returnNo: pRetNo,
+            drugCode: tempManualCtrlDrug.drugCode || tempManualCtrlDrug.code,
+            drugName: tempManualCtrlDrug.drugName || tempManualCtrlDrug.name,
+            sapCode: tempManualCtrlDrug.sapCode || tempManualCtrlDrug.sap || "未知",
             quantity: qty * sign
         });
 
