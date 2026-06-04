@@ -357,10 +357,9 @@ async function handleManualQtyEnter(e) {
 }
 
 // ==========================================
-// 7. ✨ 右側清單渲染 (加入時間過濾與最新 UI)
+// 7. ✨ 右側清單渲染 (加入智慧單位流向顯示)
 // ==========================================
 function updateTransferListUI() {
-    // 支援新版 HTML 的 ID，若無則降級找舊版
     const listDiv = document.getElementById('transferRecentList') || document.getElementById('recentList');
     if(!listDiv) return;
 
@@ -381,17 +380,31 @@ function updateTransferListUI() {
 
     let html = '';
     filteredList.forEach(item => {
-        const isVoided = item.recordStatus === '已作廢';
+        const isVoided = item.recordStatus === '已作廢' || item.recordStatus === '已作废';
         const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : 'border-primary';
         const badgeColor = isVoided ? 'bg-secondary' : 'bg-primary';
         const qtyClass = isVoided ? 'text-secondary' : 'text-primary';
         const statusText = isVoided ? ' (已作廢)' : '';
         
+        // ✨ 新增：智慧判斷調撥流向 (相對於登入者的單位)
+        const myStation = window.currentUser ? window.currentUser.station : '';
+        let directionText = '';
+        if (item.outDept === myStation) {
+            // 如果我們是撥出方
+            directionText = `撥至 ${item.inDept}`;
+        } else if (item.inDept === myStation) {
+            // 如果我們是接收方
+            directionText = `自 ${item.outDept} 撥入`;
+        } else {
+            // 例外情況 (如管理員看到其他單位的互調)
+            directionText = `${item.outDept} ➔ ${item.inDept}`;
+        }
+        
         html += `
             <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="transfer-card-${item.id}">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <span class="badge ${badgeColor} me-2">${item.actionType || '調出'}${statusText}</span>
+                        <span class="badge ${badgeColor} me-2">${directionText}${statusText}</span>
                         <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
                         ${item.prescribeNo && !item.prescribeNo.includes('手動') && item.prescribeNo !== '無' ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
                     </div>
@@ -417,7 +430,6 @@ function updateTransferListUI() {
     });
     listDiv.innerHTML = html;
 
-    // ✨ 連動更新全頁大表
     if (typeof window.updateTransHistoryTableUI === 'function') window.updateTransHistoryTableUI();
 }
 
