@@ -18,6 +18,7 @@ let ctrlTransferList = [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
 let ctrlTimeFilter = 'today';
+let ctrlCurrentFocus = -1; // ✨ 鍵盤游標焦點
 
 // ==========================================
 // 1. DOM 載入完成與事件綁定
