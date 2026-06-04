@@ -149,7 +149,7 @@ window.updateTransHistoryTableUI = function() {
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
 
         // 使用 encodeURIComponent 避免引號造成的報錯
-        const safeDetail = encodeURIComponent(detailHtml);
+        const safeDetail = encodeURIComponent(detailHtml).replace(/'/g, "%27");
 
         html += `
             <tr class="${rowStyle}">
