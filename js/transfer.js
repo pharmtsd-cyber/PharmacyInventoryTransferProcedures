@@ -337,13 +337,16 @@ function handleFuzzySearch(e) {
 async function handleManualQtyEnter(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
-        const qty = parseInt(this.value);
+        const qty = parseInt(this.value, 10);
         if(isNaN(qty) || qty <= 0) { alert("請輸入正確數量"); return; }
+        
         const success = await processDirectEntry({
             mode: "手動", raw: "手動輸入", patientNo: "無", prescribeNo: "無",
+            prescribeDate: "", // ✨ 不需要處方日期了，留空字串
             drugCode: tempManualDrug.code, sap: tempManualDrug.sap,
             drugName: tempManualDrug.name, quantity: qty
         });
+        
         if(success) {
             document.getElementById('manualQtySection').classList.add('hidden');
             tempManualDrug = null; focusCorrectInput(); 
