@@ -111,11 +111,15 @@ window.initCtrlHistorySection = function() {
     }
 };
 
-// ✨ 管藥共用精美明細彈窗函數
-window.showCtrlDetailPopup = function(encodedHtml) {
+// ✨ 建立管藥專屬的全域字典
+window.ctrlDetailCache = {};
+
+window.showCtrlDetailPopup = function(id) {
+    const htmlContent = window.ctrlDetailCache[id] || "<div class='text-muted'>無法讀取明細</div>";
+    
     Swal.fire({
         title: '📋 管制藥紀錄明細',
-        html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${decodeURIComponent(encodedHtml)}</div>`,
+        html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${htmlContent}</div>`,
         icon: 'info',
         confirmButtonColor: '#dc3545',
         confirmButtonText: '關閉'
@@ -190,8 +194,8 @@ window.updateCtrlHistoryTableUI = function() {
         if (item.reportReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>⚠️【異常通報】</strong> (👤 ${item.reportName || '未知'} - ${item.reportEmpID || ''})<br>狀態：<span class="badge bg-warning text-dark">${item.reportStatus || '未處理'}</span><br><span class="text-dark">${item.reportReason}</span></div>`;
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
-
-        const safeDetail = encodeURIComponent(detailHtml).replace(/'/g, "%27");
+        // ✨ 存進字典
+        window.ctrlDetailCache[item.id] = detailHtml;
 
         html += `
             <tr class="${rowStyle}">
@@ -218,7 +222,7 @@ window.updateCtrlHistoryTableUI = function() {
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
-                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="window.showCtrlDetailPopup('${safeDetail}')">展開紀錄</button>
+                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="window.showCtrlDetailPopup('${item.id}')">展開紀錄</button>
                 </td>
                 <td>
                     <div class="d-flex flex-column gap-1 align-items-center">
