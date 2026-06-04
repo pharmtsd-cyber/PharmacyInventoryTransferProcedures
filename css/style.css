@@ -124,3 +124,12 @@ body.mode-public .academic-tabs .nav-link.active {
     color: white !important;
     border-color: #dc3545 !important;
 }
+
+/* ✨ 模糊搜尋鍵盤選取的高亮效果 */
+.autocomplete-active {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+.autocomplete-active small {
+    color: #e2e3e5 !important;
+}
