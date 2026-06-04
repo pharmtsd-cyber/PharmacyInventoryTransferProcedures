@@ -2,20 +2,29 @@
 // 📊 調撥紀錄專屬獨立 JS (js/transfer_history.js)
 // ==========================================
 
+// ✨ 1. 建立一個全域字典 (記憶體保險箱)，用來暫存明細 HTML，徹底解決引號與特殊符號報錯問題！
+window.transDetailCache = {};
+
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ✨ 綁定點擊調撥紀錄頁籤，自動帶入智慧預設值
+    // ✨ 2. 綁定點擊「調撥紀錄」頁籤，自動帶入智慧預設值
     const transHistTab = document.querySelector('.academic-tabs .nav-link[data-tab="transfer-history"]');
     if (transHistTab) {
         transHistTab.addEventListener('click', () => {
             const inDept = document.getElementById('transHistInDept');
             const outDept = document.getElementById('transHistOutDept');
+            
             // 撥入預設為登入者單位，撥出預設為藥品管理組
-            if (inDept && window.currentUser) inDept.value = window.currentUser.station;
-            if (outDept) outDept.value = '藥品管理組';
+            if (inDept && window.currentUser && window.currentUser.station) {
+                inDept.value = window.currentUser.station;
+            }
+            if (outDept) {
+                outDept.value = '藥品管理組';
+            }
             window.updateTransHistoryTableUI();
         });
     }
+
     const transHistSearchBtn = document.getElementById('transHistSearchBtn');
     if (transHistSearchBtn) transHistSearchBtn.addEventListener('click', window.updateTransHistoryTableUI);
 
@@ -23,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('transHistStartDate')) document.getElementById('transHistStartDate').value = todayIso;
     if(document.getElementById('transHistEndDate')) document.getElementById('transHistEndDate').value = todayIso;
 
-    // 藥品自動完成
+    // 藥品自動完成 (模糊搜尋)
     const drugSearchInput = document.getElementById('transHistDrugSearch');
     if (drugSearchInput) {
         drugSearchInput.addEventListener('input', function(e) {
@@ -45,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 藥師自動完成
+    // 藥師自動完成 (模糊搜尋)
     const opSearchInput = document.getElementById('transHistOpSearch');
     if (opSearchInput) {
         opSearchInput.addEventListener('input', function(e) {
@@ -67,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 點擊畫面其他地方自動收起搜尋選單
     document.addEventListener("click", function (e) {
         if (e.target !== document.getElementById('transHistDrugSearch')) {
             const list = document.getElementById('trans-hist-drug-autocomplete-list');
@@ -79,17 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-window.initTransHistorySection = function() {
-    const stationDisplay = document.getElementById('transHistStationDisplay');
-    if (stationDisplay && window.currentUser) stationDisplay.value = window.currentUser.station;
-};
-
-// ✨ 新增：共用精美明細彈窗函數
-// ✨ 建立一個全域字典，用來暫存明細 HTML
-window.transDetailCache = {};
-
+// ✨ 3. 共用精美明細彈窗函數 (不再傳遞 HTML 字串，而是透過 ID 抓取記憶體資料)
 window.showTransDetailPopup = function(id) {
-    // 透過 ID 從字典中取出字串，完全不需要 decode 或 replace
     const htmlContent = window.transDetailCache[id] || "<div class='text-muted'>無法讀取明細</div>";
     
     Swal.fire({
@@ -101,9 +102,13 @@ window.showTransDetailPopup = function(id) {
     });
 };
 
+// ==========================================
+// 核心：全頁大表 UI 渲染
+// ==========================================
 window.updateTransHistoryTableUI = function() {
-    const filterOutDept = document.getElementById('transHistOutDept').value;
-    const filterInDept = document.getElementById('transHistInDept').value;
+    const tbody = document.getElementById('transHistTableBody');
+    if (!tbody) return;
+
     const startDate = document.getElementById('transHistStartDate').value;
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
@@ -111,14 +116,22 @@ window.updateTransHistoryTableUI = function() {
     const actionSelect = document.getElementById('transHistActionSelect').value;
     const statusSelect = document.getElementById('transHistStatusSelect').value;
 
+    // ✨ 4. 取得雙向單位篩選器的值
+    const filterOutDept = document.getElementById('transHistOutDept').value;
+    const filterInDept = document.getElementById('transHistInDept').value;
+
     const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
     const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
 
     if (typeof transferList === 'undefined') return;
 
     const filtered = transferList.filter(item => {
-        if (item.station && window.currentUser && item.station !== window.currentUser.station) return false;
+        // ✨ 5. 撥出/撥入 單位過濾 (取代舊的單一單位過濾)
+        if (filterOutDept !== '全部' && item.outDept !== filterOutDept) return false;
+        if (filterInDept !== '全部' && item.inDept !== filterInDept) return false;
+        
         if (item.rawTime < startTimestamp || item.rawTime > endTimestamp) return false;
+        
         if (drugSearch) {
             const code = (item.drugCode || item.code || "").toUpperCase();
             const name = (item.drugName || item.name || "").toUpperCase();
@@ -158,7 +171,7 @@ window.updateTransHistoryTableUI = function() {
         const reportBtnClass = (isReported || isResolved) ? 'btn-outline-warning text-dark fw-bold' : 'btn-outline-secondary';
         const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
 
-        // ✨ 組合「四大類別」並轉換為 HTML 格式，徹底美化排版
+        // ✨ 6. 組合明細文字，並將它存入保險箱 (不再硬塞進 HTML tag 裡面)
         let detailHtml = ``;
         if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${item.operatorName || '未知'})<br><span class="text-secondary">${item.remark}</span></div>`;
         if (item.voidReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>🗑️【作廢軌跡】</strong> (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})<br><span class="text-danger">${item.voidReason}</span></div>`;
@@ -166,7 +179,7 @@ window.updateTransHistoryTableUI = function() {
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
 
-        // 使用 encodeURIComponent 避免引號造成的報錯
+        // 將這筆紀錄的明細，用 item.id 當作鑰匙，存入記憶體保險箱
         window.transDetailCache[item.id] = detailHtml;
 
         html += `
