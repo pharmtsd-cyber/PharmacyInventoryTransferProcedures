@@ -196,17 +196,26 @@ function toggleInputMode() {
 }
 
 // ==========================================
-// 5. 寫入核心 (連動 API)
+// 寫入核心 (連動 API)
 // ==========================================
 async function processDirectEntry(data) {
     const outDept = document.getElementById('outDept').value;
     const inDept = document.getElementById('inDept').value;
     if (outDept === inDept) { alert("❌ 撥出與撥入單位不能相同！"); return false; }
 
+    // ✨ 這裡就是 Payload (要傳給 Power Automate 的資料包裹)
     const payload = {
-        action: "createTransfer", // ✨ 建立調撥
+        action: "createTransfer", 
         itemId: 0,
-        ...data,
+        mode: data.mode,
+        raw: data.raw,
+        patientNo: data.patientNo,
+        prescribeNo: data.prescribeNo,
+        prescribeDate: data.prescribeDate || "", // ✨ 已經幫你把處方日期放進包裹了
+        drugCode: data.drugCode,
+        sap: data.sap,
+        drugName: data.drugName,
+        quantity: data.quantity,
         actionType: "調出",
         outDept: outDept,
         inDept: inDept,
