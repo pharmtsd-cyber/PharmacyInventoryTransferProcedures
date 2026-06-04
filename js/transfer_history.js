@@ -3,6 +3,19 @@
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ✨ 綁定點擊調撥紀錄頁籤，自動帶入智慧預設值
+    const transHistTab = document.querySelector('.academic-tabs .nav-link[data-tab="transfer-history"]');
+    if (transHistTab) {
+        transHistTab.addEventListener('click', () => {
+            const inDept = document.getElementById('transHistInDept');
+            const outDept = document.getElementById('transHistOutDept');
+            // 撥入預設為登入者單位，撥出預設為藥品管理組
+            if (inDept && window.currentUser) inDept.value = window.currentUser.station;
+            if (outDept) outDept.value = '藥品管理組';
+            window.updateTransHistoryTableUI();
+        });
+    }
     const transHistSearchBtn = document.getElementById('transHistSearchBtn');
     if (transHistSearchBtn) transHistSearchBtn.addEventListener('click', window.updateTransHistoryTableUI);
 
@@ -89,9 +102,8 @@ window.showTransDetailPopup = function(id) {
 };
 
 window.updateTransHistoryTableUI = function() {
-    const tbody = document.getElementById('transHistTableBody');
-    if (!tbody) return;
-
+    const filterOutDept = document.getElementById('transHistOutDept').value;
+    const filterInDept = document.getElementById('transHistInDept').value;
     const startDate = document.getElementById('transHistStartDate').value;
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
