@@ -1,38 +1,33 @@
 // ==========================================
-// 📊 調撥紀錄專屬獨立 JS (js/transfer_history.js)
+// 📊 調撥紀錄專屬獨立 JS (js/transfer_history.js) - 雲端連線版
 // ==========================================
 
-// ✨ 1. 建立一個全域字典 (記憶體保險箱)，用來暫存明細 HTML，徹底解決引號與特殊符號報錯問題！
 window.transDetailCache = {};
+window.transApiDataCache = []; // ✨ 暫存從資料庫撈回來的真實資料
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ✨ 2. 綁定點擊「調撥紀錄」頁籤，自動帶入智慧預設值
+    // ✨ 點擊頁籤時，帶入預設值並自動向 SharePoint 發送請求
     const transHistTab = document.querySelector('.academic-tabs .nav-link[data-tab="transfer-history"]');
     if (transHistTab) {
         transHistTab.addEventListener('click', () => {
             const inDept = document.getElementById('transHistInDept');
             const outDept = document.getElementById('transHistOutDept');
+            if (inDept && window.currentUser && window.currentUser.station) inDept.value = window.currentUser.station;
+            if (outDept) outDept.value = '藥品管理組';
             
-            // 撥入預設為登入者單位，撥出預設為藥品管理組
-            if (inDept && window.currentUser && window.currentUser.station) {
-                inDept.value = window.currentUser.station;
-            }
-            if (outDept) {
-                outDept.value = '藥品管理組';
-            }
-            window.updateTransHistoryTableUI();
+            window.fetchTransHistoryFromDB(); // ⚡ 連線抓資料
         });
     }
 
     const transHistSearchBtn = document.getElementById('transHistSearchBtn');
-    if (transHistSearchBtn) transHistSearchBtn.addEventListener('click', window.updateTransHistoryTableUI);
+    if (transHistSearchBtn) transHistSearchBtn.addEventListener('click', window.fetchTransHistoryFromDB);
 
     const todayIso = new Date().toISOString().split('T')[0];
     if(document.getElementById('transHistStartDate')) document.getElementById('transHistStartDate').value = todayIso;
     if(document.getElementById('transHistEndDate')) document.getElementById('transHistEndDate').value = todayIso;
 
-    // 藥品自動完成 (模糊搜尋)
+    // 藥品自動完成
     const drugSearchInput = document.getElementById('transHistDrugSearch');
     if (drugSearchInput) {
         drugSearchInput.addEventListener('input', function(e) {
@@ -47,14 +42,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = "p-2 border-bottom text-dark bg-white autocomplete-hover";
                 item.style.cursor = "pointer";
                 item.addEventListener('click', () => {
-                    drugSearchInput.value = drug.code; list.innerHTML = ''; window.updateTransHistoryTableUI(); 
+                    drugSearchInput.value = drug.code; list.innerHTML = ''; 
+                    window.renderTransHistoryTableUI(); // 本地過濾
                 });
                 list.appendChild(item);
             });
         });
     }
 
-    // 藥師自動完成 (模糊搜尋)
+    // 藥師自動完成
     const opSearchInput = document.getElementById('transHistOpSearch');
     if (opSearchInput) {
         opSearchInput.addEventListener('input', function(e) {
@@ -69,14 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = "p-2 border-bottom text-dark bg-white autocomplete-hover";
                 item.style.cursor = "pointer";
                 item.addEventListener('click', () => {
-                    opSearchInput.value = user.name; list.innerHTML = ''; window.updateTransHistoryTableUI();
+                    opSearchInput.value = user.name; list.innerHTML = ''; 
+                    window.renderTransHistoryTableUI(); // 本地過濾
                 });
                 list.appendChild(item);
             });
         });
     }
 
-    // 點擊畫面其他地方自動收起搜尋選單
     document.addEventListener("click", function (e) {
         if (e.target !== document.getElementById('transHistDrugSearch')) {
             const list = document.getElementById('trans-hist-drug-autocomplete-list');
@@ -89,10 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// ✨ 3. 共用精美明細彈窗函數 (不再傳遞 HTML 字串，而是透過 ID 抓取記憶體資料)
 window.showTransDetailPopup = function(id) {
     const htmlContent = window.transDetailCache[id] || "<div class='text-muted'>無法讀取明細</div>";
-    
     Swal.fire({
         title: '📋 調撥紀錄明細',
         html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${htmlContent}</div>`,
@@ -103,9 +97,33 @@ window.showTransDetailPopup = function(id) {
 };
 
 // ==========================================
-// 核心：全頁大表 UI 渲染 (已修復作業方式殘留 Bug)
+// ⚡ 核心 1：向資料庫抓取真實資料
 // ==========================================
-window.updateTransHistoryTableUI = function() {
+window.fetchTransHistoryFromDB = async function() {
+    const tbody = document.getElementById('transHistTableBody');
+    if (!tbody) return;
+
+    // 顯示載入動畫
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary me-2" role="status"></div><b class="text-primary fs-5">連線至 SharePoint 讀取即時資料中...</b></td></tr>`;
+
+    try {
+        const response = await fetch(GET_API_URL + "&action=getHistory", { method: 'GET' });
+        if (!response.ok) throw new Error("API 連線失敗");
+        
+        const records = await response.json();
+        window.transApiDataCache = records; 
+        
+        window.renderTransHistoryTableUI(); 
+    } catch (error) {
+        console.error(error);
+        tbody.innerHTML = `<tr><td colspan="8" class="text-danger py-4">❌ 讀取資料庫失敗，請檢查網路連線</td></tr>`;
+    }
+};
+
+// ==========================================
+// ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染
+// ==========================================
+window.renderTransHistoryTableUI = function() {
     const tbody = document.getElementById('transHistTableBody');
     if (!tbody) return;
 
@@ -113,8 +131,6 @@ window.updateTransHistoryTableUI = function() {
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
     const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
-    
-    // 🚨 已經將 actionSelect 刪除，不會再報錯了！
     const statusSelect = document.getElementById('transHistStatusSelect').value;
 
     const filterOutDept = document.getElementById('transHistOutDept').value;
@@ -123,18 +139,17 @@ window.updateTransHistoryTableUI = function() {
     const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
     const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
 
-    if (typeof transferList === 'undefined') return;
-
-    const filtered = transferList.filter(item => {
-        // 雙向單位過濾
+    const filtered = window.transApiDataCache.filter(item => {
         if (filterOutDept !== '全部' && item.outDept !== filterOutDept) return false;
         if (filterInDept !== '全部' && item.inDept !== filterInDept) return false;
         
-        if (item.rawTime < startTimestamp || item.rawTime > endTimestamp) return false;
+        let itemTimeMs = 0;
+        if (item.timestamp) itemTimeMs = new Date(item.timestamp).getTime();
+        if (itemTimeMs > 0 && (itemTimeMs < startTimestamp || itemTimeMs > endTimestamp)) return false;
         
         if (drugSearch) {
-            const code = (item.drugCode || item.code || "").toUpperCase();
-            const name = (item.drugName || item.name || "").toUpperCase();
+            const code = (item.drugCode || "").toUpperCase();
+            const name = (item.drugName || "").toUpperCase();
             if (!code.includes(drugSearch) && !name.includes(drugSearch)) return false;
         }
         if (opSearch) {
@@ -143,12 +158,15 @@ window.updateTransHistoryTableUI = function() {
             if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
         }
         
-        // 🚨 這裡也同步移除了 actionSelect 的過濾邏輯
-        
-        const currentStatus = item.recordStatus || "正常";
+        const isVoided = !!(item.voidReason && item.voidReason.trim() !== '');
+        const currentStatus = isVoided ? "已作廢" : "正常";
         if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
+        
         return true;
     });
+
+    // 排序：從新到舊
+    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-muted py-4">🔍 在此篩選區間內，查無任何符合條件的紀錄</td></tr>`;
@@ -157,7 +175,7 @@ window.updateTransHistoryTableUI = function() {
 
     let html = '';
     filtered.forEach(item => {
-        const isVoided = item.recordStatus === '已作废' || item.recordStatus === '已作廢';
+        const isVoided = !!(item.voidReason && item.voidReason.trim() !== '');
         const isQtyNegative = item.quantity < 0;
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
         
@@ -182,21 +200,24 @@ window.updateTransHistoryTableUI = function() {
 
         window.transDetailCache[item.id] = detailHtml;
 
+        const dispDate = item.timestamp ? item.timestamp.split('T')[0] : '';
+        const dispTime = item.timestamp && item.timestamp.includes('T') ? item.timestamp.split('T')[1].substring(0,8) : '';
+
         html += `
             <tr class="${rowStyle}">
                 <td style="font-size: 0.8rem;" class="text-start font-monospace">
-                    <div>${item.timestamp.split(' ')[0]}</div>
-                    <div class="text-secondary">${item.timestamp.split(' ')[1] || ''}</div>
+                    <div>${dispDate}</div>
+                    <div class="text-secondary">${dispTime}</div>
                 </td>
                 <td><span class="badge ${isVoided ? 'bg-secondary' : 'bg-primary'}">${item.actionType || '調出'}</span></td>
-                <td class="font-monospace text-start fw-bold fs-6">${item.drugCode || item.code}</td>
+                <td class="font-monospace text-start fw-bold fs-6">${item.drugCode || ''}</td>
                 <td class="text-start">
-                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || item.name}</div>
+                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || ''}</div>
                 </td>
                 <td><span class="${qtyClass} fs-5">${qtyDisplay}</span></td>
                 <td>
-                    <div class="fw-bold">${item.operatorName}</div>
-                    <small class="text-muted font-monospace">${item.operatorId}</small>
+                    <div class="fw-bold">${item.operatorName || ''}</div>
+                    <small class="text-muted font-monospace">${item.operatorId || ''}</small>
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
