@@ -133,3 +133,11 @@ body.mode-public .academic-tabs .nav-link.active {
 .autocomplete-active small {
     color: #e2e3e5 !important;
 }
+
+/* ✨ 強制覆蓋 Bootstrap text-primary 的顏色，讓選中時確實變白字 */
+.academic-tabs .nav-link[data-tab="transfer"].active.text-primary,
+.academic-tabs .nav-link[data-tab="transfer-history"].active.text-primary {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+    border-color: #0d6efd !important;
+}
