@@ -72,10 +72,16 @@ window.initTransHistorySection = function() {
 };
 
 // ✨ 新增：共用精美明細彈窗函數
-window.showTransDetailPopup = function(encodedHtml) {
+// ✨ 建立一個全域字典，用來暫存明細 HTML
+window.transDetailCache = {};
+
+window.showTransDetailPopup = function(id) {
+    // 透過 ID 從字典中取出字串，完全不需要 decode 或 replace
+    const htmlContent = window.transDetailCache[id] || "<div class='text-muted'>無法讀取明細</div>";
+    
     Swal.fire({
         title: '📋 調撥紀錄明細',
-        html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${decodeURIComponent(encodedHtml)}</div>`,
+        html: `<div class="text-start p-3 bg-light rounded border shadow-sm" style="font-size:0.95rem; line-height: 1.6;">${htmlContent}</div>`,
         icon: 'info',
         confirmButtonColor: '#0d6efd',
         confirmButtonText: '關閉'
@@ -149,7 +155,7 @@ window.updateTransHistoryTableUI = function() {
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
 
         // 使用 encodeURIComponent 避免引號造成的報錯
-        const safeDetail = encodeURIComponent(detailHtml).replace(/'/g, "%27");
+        window.transDetailCache[item.id] = detailHtml;
 
         html += `
             <tr class="${rowStyle}">
@@ -169,7 +175,7 @@ window.updateTransHistoryTableUI = function() {
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
-                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="window.showTransDetailPopup('${safeDetail}')">展開紀錄</button>
+                    <button class="btn btn-sm btn-info py-0 px-2 mt-1 text-white shadow-sm" style="font-size:0.7rem;" onclick="window.showTransDetailPopup('${item.id}')">展開紀錄</button>
                 </td>
                 <td>
                     <div class="d-flex flex-column gap-1 align-items-center">
