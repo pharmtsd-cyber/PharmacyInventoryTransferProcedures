@@ -37,12 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const manualQtyInput = document.getElementById('manualQtyInput');
     if (manualQtyInput) manualQtyInput.addEventListener('keypress', handleManualQtyEnter);
-
-    const outDeptSelect = document.getElementById('outDept');
-    if (outDeptSelect) outDeptSelect.addEventListener('change', (e) => localStorage.setItem('savedOutDept', e.target.value));
-    
-    const inDeptSelect = document.getElementById('inDept');
-    if (inDeptSelect) inDeptSelect.addEventListener('change', (e) => localStorage.setItem('savedInDept', e.target.value));
     
     // ✨ 綁定今日/近兩日切換按鈕
     const timeToday = document.getElementById('transferTimeToday');
@@ -94,7 +88,7 @@ function loadTransferListFromLocal() {
 }
 
 // ==========================================
-// 4. 操作藥師與單位初始化
+// 4. 操作藥師與單位初始化 (✨ 改為強制鎖定邏輯)
 // ==========================================
 window.initOperatorAndDept = function() {
     if (!window.currentUser) return;
@@ -103,21 +97,9 @@ window.initOperatorAndDept = function() {
     const outDeptSelect = document.getElementById('outDept');
     const inDeptSelect = document.getElementById('inDept');
     
-    const savedOutDept = localStorage.getItem('savedOutDept');
-    const savedInDept = localStorage.getItem('savedInDept');
-
-    if (outDeptSelect) {
-        if (savedOutDept) {
-            outDeptSelect.value = savedOutDept; 
-        } else {
-            for(let i = 0; i < outDeptSelect.options.length; i++) {
-                if(outDeptSelect.options[i].value === window.currentUser.dept) {
-                    outDeptSelect.selectedIndex = i; break;
-                }
-            }
-        }
-    }
-    if (inDeptSelect && savedInDept) inDeptSelect.value = savedInDept; 
+    // 1. 強制預設：撥出是藥品管理組，撥入是登入單位
+    if (outDeptSelect) outDeptSelect.value = '藥品管理組';
+    if (inDeptSelect && window.currentUser.station) inDeptSelect.value = window.currentUser.station;
 };
 
 function setOperator(id, name) {
@@ -195,15 +177,54 @@ function toggleInputMode() {
     }
 }
 
+// ✨ 新增：處理模式切換時的 UI 變動
+window.applyTransWorkModeChange = function() {
+    if (window.workMode === 'public') {
+        // 公用機台：解除藥師預設帶入，游標跳至藥師輸入框
+        setOperator('', '');
+        const opInput = document.getElementById('operatorSearchInput');
+        if(opInput) opInput.focus();
+    } else {
+        // 個人模式：鎖定登入者，游標依模式跳至條碼或搜尋框
+        if(window.currentUser) setOperator(window.currentUser.empId, window.currentUser.name);
+        focusCorrectInput();
+    }
+};
+
+// ✨ 智慧游標輔助
+function focusCorrectInput() {
+    // 4. 公用機台模式且尚未選擇藥師時，游標鎖定在藥師搜尋框
+    if (window.workMode === 'public' && (!window.currentOperator || !window.currentOperator.empId)) {
+        const opInput = document.getElementById('operatorSearchInput');
+        if(opInput) opInput.focus();
+        return;
+    }
+
+    const modeBarcode = document.getElementById('modeBarcode');
+    if(modeBarcode && modeBarcode.checked) {
+        const barcodeInput = document.getElementById('barcodeInput');
+        if (barcodeInput) barcodeInput.focus();
+    } else {
+        const searchInput = document.getElementById('drugSearchInput');
+        if (searchInput) searchInput.focus();
+    }
+}
 // ==========================================
 // 寫入核心 (連動 API)
 // ==========================================
 async function processDirectEntry(data) {
     const outDept = document.getElementById('outDept').value;
     const inDept = document.getElementById('inDept').value;
+    const myStation = window.currentUser ? window.currentUser.station : '';
+
     if (outDept === inDept) { alert("❌ 撥出與撥入單位不能相同！"); return false; }
 
-    // ✨ 這裡就是 Payload (要傳給 Power Automate 的資料包裹)
+    // ✨ 2. 防呆警告：如果撥出和撥入都不是目前登入的單位
+    if (outDept !== myStation && inDept !== myStation) {
+        const confirmMsg = `⚠️【單位異常確認】\n\n您目前的登入工作站是：「${myStation}」\n但此筆調撥流向為： ${outDept} ➔ ${inDept}\n\n確定要執行此筆調撥嗎？`;
+        if (!confirm(confirmMsg)) return false;
+    }
+
     const payload = {
         action: "createTransfer", 
         itemId: 0,
@@ -211,7 +232,7 @@ async function processDirectEntry(data) {
         raw: data.raw,
         patientNo: data.patientNo,
         prescribeNo: data.prescribeNo,
-        prescribeDate: data.prescribeDate || "", // ✨ 已經幫你把處方日期放進包裹了
+        prescribeDate: data.prescribeDate || "",
         drugCode: data.drugCode,
         sap: data.sap,
         drugName: data.drugName,
@@ -244,11 +265,27 @@ async function processDirectEntry(data) {
         updateTransferListUI();
         
         document.getElementById('remarkInput').value = ''; 
+
+        // ✨ 3. 每次調撥成立後，強制回到預設單位
+        document.getElementById('outDept').value = '藥品管理組';
+        document.getElementById('inDept').value = myStation;
+
         return true;
     } catch (error) {
         alert("❌ 寫入失敗，請檢查網路連線。"); return false;
     } finally {
         if(overlay) overlay.classList.add('hidden');
+        
+        // 依照公用/個人模式將游標歸位
+        if (window.workMode === 'public') {
+            setOperator('', ''); 
+            setTimeout(() => {
+                const opInput = document.getElementById('operatorSearchInput');
+                if(opInput) opInput.focus();
+            }, 100);
+        } else {
+            focusCorrectInput(); 
+        }
     }
 }
 
