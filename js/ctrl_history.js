@@ -191,7 +191,7 @@ window.updateCtrlHistoryTableUI = function() {
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
 
-        const safeDetail = encodeURIComponent(detailHtml);
+        const safeDetail = encodeURIComponent(detailHtml).replace(/'/g, "%27");
 
         html += `
             <tr class="${rowStyle}">
