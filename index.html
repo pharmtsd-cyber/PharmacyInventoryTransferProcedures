@@ -89,10 +89,14 @@
                         <button class="btn btn-sm btn-outline-secondary hidden" id="backToHubBtn">返回主選單</button>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-bold text-secondary small">撥出單位</label>
-                            <select class="form-select border-secondary" id="outDept">
+                    <div class="row g-2 mb-3 p-2 rounded position-relative transition-all" id="deptFlowWrapper" style="border: 1px solid #dee2e6;">
+                        <div class="col-12 mb-1 d-flex justify-content-between align-items-center">
+                            <label class="form-label fw-bold small text-theme mb-0">🔄 調撥流向設定</label>
+                            <span id="deptFlowStatusBadge" class="badge bg-secondary transition-all">✅ 系統預設</span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">📤 撥出單位</label>
+                            <select class="form-select border-theme shadow-sm transition-all" id="outDept">
                                 <option value="藥品管理組">藥品管理組</option>
                                 <option value="門診藥局">門診藥局</option>
                                 <option value="住院藥局">住院藥局</option>
@@ -100,14 +104,14 @@
                                 <option value="調配藥局">調配藥局</option>
                             </select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold text-secondary small">撥入單位</label>
-                            <select class="form-select border-secondary" id="inDept">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">📥 撥入單位</label>
+                            <select class="form-select border-theme shadow-sm transition-all" id="inDept">
+                                <option value="藥品管理組">藥品管理組</option>
                                 <option value="門診藥局">門診藥局</option>
                                 <option value="住院藥局">住院藥局</option>
                                 <option value="急診藥局">急診藥局</option>
                                 <option value="調配藥局">調配藥局</option>
-                                <option value="藥品管理組">藥品管理組</option>
                             </select>
                         </div>
                     </div>
