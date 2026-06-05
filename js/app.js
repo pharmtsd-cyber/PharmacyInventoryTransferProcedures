@@ -204,7 +204,7 @@ function switchTab(tabName) {
     const activeTab = document.querySelector(`.academic-tabs .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    ['transfer', 'ctrl-drug', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
+    ['transfer', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
     });
