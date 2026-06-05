@@ -173,9 +173,13 @@ function handleLogin() {
         window.initOperatorAndDept();
     }
 
-    // ✨ 新增：完美銜接！觸發管制藥專屬的跨檔案初始化函數
+// ✨ 完美銜接！觸發管制藥專屬的跨檔案初始化函數
     if(typeof window.initCtrlDrugSection === 'function') {
         window.initCtrlDrugSection();
+    }
+    // ✨ 新增：觸發管藥退藥分頁的初始化
+    if(typeof window.initCtrlReturnSection === 'function') {
+        window.initCtrlReturnSection();
     }
 
     // 分流畫面
