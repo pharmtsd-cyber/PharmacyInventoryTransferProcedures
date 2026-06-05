@@ -214,10 +214,9 @@ body.mode-public .academic-tabs .nav-link.active {
     color: #ffffff !important;
 }
 
-/* ✨ 讓主工作區卡片完美延展至螢幕底部的專屬引擎 */
+/* ✨ 讓主工作區卡片完美對齊，並把超量資料「關在內部捲動」的引擎 */
 .workspace-row {
     align-items: stretch !important;
-    min-height: calc(100vh - 190px); /* 扣除上方標題與頁籤的高度 */
 }
 .workspace-card {
     display: flex !important;
@@ -227,4 +226,5 @@ body.mode-public .academic-tabs .nav-link.active {
 .workspace-scroll-list {
     flex-grow: 1 !important;
     overflow-y: auto !important;
+    max-height: 600px !important; /* ✨ 關鍵救星！強制限制最大高度，超過就會自動出現內部捲軸，不會拉長網頁 */
 }
