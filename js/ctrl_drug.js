@@ -265,11 +265,10 @@ async function handleCtrlManualQtyEnter(e) {
         const actionText = actionSelect.options[actionSelect.selectedIndex].text;
         const sign = parseInt(actionSelect.options[actionSelect.selectedIndex].dataset.sign, 10);
 
-        // ✨ 防呆：處方類必須填寫欄位
+        // ✨ 防呆：處方類必須填寫欄位 (已移除退藥號 pRetNo)
         let pDate = document.getElementById('ctrlManualPrescribeDate').value;
         let pPatient = document.getElementById('ctrlManualPatientNo').value.trim();
         let pPresNo = document.getElementById('ctrlManualPrescribeNo').value.trim();
-        let pRetNo = document.getElementById('ctrlManualReturnNo').value.trim();
 
         if (actionText.includes('處方調劑') || actionText.includes('處方刪除')) {
             if (!pDate || !pPatient || !pPresNo) {
@@ -283,7 +282,7 @@ async function handleCtrlManualQtyEnter(e) {
 
         const success = await processCtrlEntry({
             mode: "手動", raw: "手動輸入無條碼", 
-            patientNo: pPatient, prescribeNo: pPresNo, prescribeDate: pDate, returnNo: pRetNo,
+            patientNo: pPatient, prescribeNo: pPresNo, prescribeDate: pDate, returnNo: "", // ✨ 退藥號強制給空字串
             drugCode: tempManualCtrlDrug.drugCode || tempManualCtrlDrug.code,
             drugName: tempManualCtrlDrug.drugName || tempManualCtrlDrug.name,
             sapCode: tempManualCtrlDrug.sapCode || tempManualCtrlDrug.sap || "未知",
