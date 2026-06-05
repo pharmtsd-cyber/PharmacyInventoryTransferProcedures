@@ -17,7 +17,7 @@ let pendingUploads = 0;
 window.ctrlTransferList = window.ctrlTransferList || [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
-let ctrlTimeFilter = 'today';
+window.ctrlTimeFilter = window.ctrlTimeFilter || 'today';
 let ctrlCurrentFocus = -1; // ✨ 鍵盤游標焦點
 
 // ==========================================
@@ -41,23 +41,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctrlModeManual = document.getElementById('ctrlModeManual');
     if (ctrlModeManual) ctrlModeManual.addEventListener('change', toggleCtrlInputMode);
 
-    // 紀錄時間切換按鈕事件
-    const ctrlTimeToday = document.getElementById('ctrlTimeToday');
-    const ctrlTimeTwoDays = document.getElementById('ctrlTimeTwoDays');
-    if (ctrlTimeToday) {
-        ctrlTimeToday.addEventListener('change', () => {
-            ctrlTimeFilter = 'today';
-            document.getElementById('ctrlListTitle').innerText = '今日管藥操作紀錄';
-            updateCtrlListUI();
-        });
-    }
-    if (ctrlTimeTwoDays) {
-        ctrlTimeTwoDays.addEventListener('change', () => {
-            ctrlTimeFilter = '2days';
-            document.getElementById('ctrlListTitle').innerText = '近兩日管藥操作紀錄';
-            updateCtrlListUI();
-        });
-    }
+// ✨ 紀錄時間切換按鈕事件 (完美同步調劑與退藥分頁)
+    const timeSyncHandler = (filterValue) => {
+        window.ctrlTimeFilter = filterValue;
+        const titleText = filterValue === 'today' ? '今日管藥操作紀錄' : '近兩日管藥操作紀錄';
+        
+        // 1. 同步兩個分頁的標題
+        if (document.getElementById('ctrlListTitle')) document.getElementById('ctrlListTitle').innerText = titleText;
+        if (document.getElementById('ctrlRetListTitle')) document.getElementById('ctrlRetListTitle').innerText = titleText;
+        
+        // 2. 同步兩個分頁的 Radio 按鈕選取狀態
+        if (filterValue === 'today') {
+            if (document.getElementById('ctrlTimeToday')) document.getElementById('ctrlTimeToday').checked = true;
+            if (document.getElementById('ctrlRetTimeToday')) document.getElementById('ctrlRetTimeToday').checked = true;
+        } else {
+            if (document.getElementById('ctrlTimeTwoDays')) document.getElementById('ctrlTimeTwoDays').checked = true;
+            if (document.getElementById('ctrlRetTimeTwoDays')) document.getElementById('ctrlRetTimeTwoDays').checked = true;
+        }
+        window.updateCtrlListUI(); // 重新渲染清單
+    };
+
+    if (document.getElementById('ctrlTimeToday')) document.getElementById('ctrlTimeToday').addEventListener('change', () => timeSyncHandler('today'));
+    if (document.getElementById('ctrlTimeTwoDays')) document.getElementById('ctrlTimeTwoDays').addEventListener('change', () => timeSyncHandler('2days'));
+    
+    // 退藥分頁的按鈕也要綁定
+    if (document.getElementById('ctrlRetTimeToday')) document.getElementById('ctrlRetTimeToday').addEventListener('change', () => timeSyncHandler('today'));
+    if (document.getElementById('ctrlRetTimeTwoDays')) document.getElementById('ctrlRetTimeTwoDays').addEventListener('change', () => timeSyncHandler('2days'));
 
     // 條碼刷入事件
     const ctrlBarcode = document.getElementById('ctrlBarcodeInput');
@@ -587,71 +596,72 @@ window.reportAnomalyItem = async function(id) {
 };
 
 // ==========================================
-// 7. 右側管藥操作紀錄 UI 渲染
+// 7. 右側管藥操作紀錄 UI 渲染 (✨ 雙分頁同步更新)
 // ==========================================
 window.updateCtrlListUI = function() {
-    const listDiv = document.getElementById('ctrlRecentList');
-    if(!listDiv) return;
-
     const todayStr = new Date().toLocaleDateString();
     const filteredList = window.ctrlTransferList.filter(item => {
-        if (ctrlTimeFilter === 'today') {
+        if (window.ctrlTimeFilter === 'today') {
             return new Date(item.rawTime).toLocaleDateString() === todayStr;
         }
         return true; 
     });
 
-    if(document.getElementById('ctrlQueueCount')) {
-        document.getElementById('ctrlQueueCount').innerText = `${filteredList.length} 筆`;
-    }
-    
-    if(filteredList.length === 0) {
-        listDiv.innerHTML = `<div class="text-center text-muted mt-5 py-4">此區間尚無管制藥操作紀錄</div>`; return;
-    }
-
     let html = '';
-    filteredList.forEach(item => {
-        const isQtyNegative = item.quantity < 0;
-        const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
-        
-        const isVoided = item.recordStatus === '已作廢';
-        const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : (isQtyNegative ? 'border-danger':'border-success');
-        const finalBadgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
-        const statusText = isVoided ? ' (已作廢)' : '';
-        
-        html += `
-            <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="ctrl-card-${item.id}">
-                <div class="d-flex justify-content-between align-items-start mb-1">
-                    <div>
-                        <span class="badge ${finalBadgeColor} me-2">${item.actionType}${statusText}</span>
-                        <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
-                        ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
+    if(filteredList.length === 0) {
+        html = `<div class="text-center text-muted mt-5 py-4">此區間尚無管制藥操作紀錄</div>`;
+    } else {
+        filteredList.forEach(item => {
+            const isQtyNegative = item.quantity < 0;
+            const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
+            
+            const isVoided = item.recordStatus === '已作廢';
+            const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : (isQtyNegative ? 'border-danger':'border-success');
+            const finalBadgeColor = isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success');
+            const statusText = isVoided ? ' (已作廢)' : '';
+            
+            html += `
+                <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="ctrl-card-${item.id}">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div>
+                            <span class="badge ${finalBadgeColor} me-2">${item.actionType}${statusText}</span>
+                            <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
+                            ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
+                        </div>
+                        <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
                     </div>
-                    <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
-                </div>
-                <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
-                ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
-                
-                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
-                    <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
-                    <div class="col-5 text-end d-flex align-items-center justify-content-end">
-                        <strong class="fs-5 ${isVoided ? 'text-secondary' : (isQtyNegative ? 'text-danger':'text-success')} me-2">${qtyDisplay} 支</strong>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
-                            ${isVoided 
-                                ? `<button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.7rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
-                                : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
-                            }
+                    <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
+                    ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
+                        <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
+                        <div class="col-5 text-end d-flex align-items-center justify-content-end">
+                            <strong class="fs-5 ${isVoided ? 'text-secondary' : (isQtyNegative ? 'text-danger':'text-success')} me-2">${qtyDisplay} 支</strong>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
+                                ${isVoided 
+                                    ? `<button class="btn btn-sm btn-outline-success py-0 px-1" style="font-size:0.7rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
+                                    : `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:0.7rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
+                                }
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>`;
-    });
-    listDiv.innerHTML = html;
+                </div>`;
+        });
+    }
 
-    // ✨ 雙向連動：更新側邊欄後，一併通知全頁大表重新渲染
+    // ✨ 將產生的清單同時渲染到「調劑」與「退藥」兩個分頁的右側
+    const listDiv1 = document.getElementById('ctrlRecentList');
+    const listDiv2 = document.getElementById('ctrlRetRecentList');
+    if (listDiv1) listDiv1.innerHTML = html;
+    if (listDiv2) listDiv2.innerHTML = html;
+
+    // ✨ 同步更新兩邊的筆數
+    if(document.getElementById('ctrlQueueCount')) document.getElementById('ctrlQueueCount').innerText = `${filteredList.length} 筆`;
+    if(document.getElementById('ctrlRetQueueCount')) document.getElementById('ctrlRetQueueCount').innerText = `${filteredList.length} 筆`;
+
     if (typeof window.updateCtrlHistoryTableUI === 'function') window.updateCtrlHistoryTableUI();
-}
+};
 
 // ==========================================
 // 8. 輔助工具：操作藥師模糊搜尋
