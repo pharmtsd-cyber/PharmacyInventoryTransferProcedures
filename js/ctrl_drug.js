@@ -14,7 +14,7 @@ const CTRL_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environme
 let pendingUploads = 0; 
 
 // ✨ 3. 全域變數 (只能有一組！)
-let ctrlTransferList = [];
+window.ctrlTransferList = window.ctrlTransferList || [];
 window.ctrlCurrentOperator = {}; 
 let tempManualCtrlDrug = null;
 let ctrlTimeFilter = 'today';
@@ -339,7 +339,7 @@ async function processCtrlEntry(data) {
     payload.timestamp = new Date().toLocaleString();
     payload.rawTime = Date.now();
 
-    ctrlTransferList.unshift(payload);
+    window.ctrlTransferList.unshift(payload);
     saveCtrlListToLocal();
     updateCtrlListUI();
     document.getElementById('ctrlRemarkInput').value = '';
@@ -356,7 +356,7 @@ async function processCtrlEntry(data) {
     .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const result = await response.json();
-        const target = ctrlTransferList.find(i => i.id === payload.id);
+        const target = window.ctrlTransferList.find(i => i.id === payload.id);
         if (target && result.newId) {
             target.id = result.newId.toString();
             saveCtrlListToLocal();
@@ -392,7 +392,7 @@ window.editCtrlItem = async function(id, currentQty, actionType) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步，請稍後。', 'error'); return; }
     
-    const target = ctrlTransferList.find(i => i.id === id);
+    const target = window.ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     const absoluteQty = Math.abs(currentQty);
@@ -446,7 +446,7 @@ window.voidCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
     
-    const target = ctrlTransferList.find(i => i.id === id);
+    const target = window.ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     const recordInfo = `
@@ -496,7 +496,7 @@ window.voidCtrlItem = async function(id) {
 // ==========================================
 window.restoreCtrlItem = async function(id) {
     const parsedId = parseInt(id, 10);
-    const target = ctrlTransferList.find(i => i.id === id);
+    const target = window.ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     const recordInfo = `<div class="text-start p-3 bg-light rounded border border-success mb-3"><strong>💊 藥品：</strong>${target.drugName}<br><strong>🗑️ 原作廢理由：</strong>${target.voidReason}</div>`;
@@ -540,7 +540,7 @@ window.restoreCtrlItem = async function(id) {
 window.reportAnomalyItem = async function(id) {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId)) { Swal.fire('錯誤', '資料未同步。', 'error'); return; }
-    const target = ctrlTransferList.find(i => i.id === id);
+    const target = window.ctrlTransferList.find(i => i.id === id);
     if(!target) return;
 
     if (target.reportStatus === '未處理' || target.reportStatus === '處理中' || target.reportStatus === '已結案') {
@@ -589,12 +589,12 @@ window.reportAnomalyItem = async function(id) {
 // ==========================================
 // 7. 右側管藥操作紀錄 UI 渲染
 // ==========================================
-function updateCtrlListUI() {
+window.updateCtrlListUI() {
     const listDiv = document.getElementById('ctrlRecentList');
     if(!listDiv) return;
 
     const todayStr = new Date().toLocaleDateString();
-    const filteredList = ctrlTransferList.filter(item => {
+    const filteredList = window.ctrlTransferList.filter(item => {
         if (ctrlTimeFilter === 'today') {
             return new Date(item.rawTime).toLocaleDateString() === todayStr;
         }
@@ -702,10 +702,10 @@ function handleCtrlOperatorEnter(e) {
 // ==========================================
 // 9. 本地硬碟暫存與游標輔助機制
 // ==========================================
-function saveCtrlListToLocal() {
+window.saveCtrlListToLocal() {
     if (!window.currentUser || !window.currentUser.station) return;
     const key = `ctrlData_${window.currentUser.station}`;
-    localStorage.setItem(key, JSON.stringify(ctrlTransferList));
+    localStorage.setItem(key, JSON.stringify(window.ctrlTransferList));
 }
 
 function loadCtrlListFromLocal() {
@@ -717,13 +717,13 @@ function loadCtrlListFromLocal() {
         try {
             const parsed = JSON.parse(savedData);
             const now = Date.now();
-            ctrlTransferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 172800000);
+            window.ctrlTransferList = parsed.filter(item => item.rawTime && (now - item.rawTime) <= 172800000);
             saveCtrlListToLocal();
         } catch(e) { 
-            ctrlTransferList = []; 
+            window.ctrlTransferList = []; 
         }
     } else { 
-        ctrlTransferList = []; 
+        window.ctrlTransferList = []; 
     }
     
     updateCtrlListUI();
