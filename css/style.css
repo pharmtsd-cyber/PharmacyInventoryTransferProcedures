@@ -214,17 +214,20 @@ body.mode-public .academic-tabs .nav-link.active {
     color: #ffffff !important;
 }
 
-/* ✨ 讓主工作區卡片完美對齊，並把超量資料「關在內部捲動」的引擎 */
+/* ✨ 讓主工作區動態適應螢幕大小，並把超量資料「關在內部捲動」的終極引擎 */
 .workspace-row {
     align-items: stretch !important;
+    height: calc(100vh - 190px); /* 🌟 動態計算：100% 的視窗高度，扣掉上方標題列與頁籤大約 190px 的空間 */
+    min-height: 550px; /* 🛡️ 防呆機制：如果使用者把瀏覽器視窗拉得超級小，最少還是維持 550px 高度以免版面擠壓 */
 }
+
 .workspace-card {
     display: flex !important;
     flex-direction: column !important;
     height: 100% !important; 
 }
+
 .workspace-scroll-list {
-    flex-grow: 1 !important;
+    flex: 1 1 0 !important; /* 🪄 Flexbox 魔法：強制清單只能在卡片剩餘的空間內伸展，超過的資料立刻轉為內部捲軸！ */
     overflow-y: auto !important;
-    max-height: 600px !important; /* ✨ 關鍵救星！強制限制最大高度，超過就會自動出現內部捲軸，不會拉長網頁 */
 }
