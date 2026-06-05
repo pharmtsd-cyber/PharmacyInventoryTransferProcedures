@@ -73,7 +73,8 @@
         <ul class="nav nav-tabs academic-tabs mb-4" id="mainTabs">
             <li class="nav-item"><a class="nav-link active" data-tab="transfer" href="#">調撥作業</a></li>
             <li class="nav-item"><a class="nav-link text-theme fw-bold" data-tab="transfer-history" href="#">📊 調撥紀錄</a></li>
-            <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">1-3級管藥作業</a></li>
+            <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-drug" href="#">💊 1-3級管藥/調劑</a></li>
+            <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-return" href="#">🔙 1-3級管藥/退藥</a></li>
             <li class="nav-item"><a class="nav-link text-danger fw-bold" data-tab="ctrl-history" href="#">📊 1-3級管藥紀錄</a></li>
             <li class="nav-item hidden" id="tab-receive-li"><a class="nav-link" data-tab="receive" href="#">接收作業</a></li>
             <li class="nav-item hidden" id="tab-storage-li"><a class="nav-link" data-tab="storage" href="#">藥品管理組SAP作業</a></li>
@@ -513,6 +514,127 @@
     </div>
 </div>
 
+    <div id="content-ctrl-return" class="row g-4 hidden">
+            <div class="col-md-7">
+                <div class="card academic-card p-4 h-100 border-danger border-2">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h5 class="text-danger fw-bold mb-0">🔙 1-3級管藥退藥作業</h5>
+                        <span class="badge bg-danger fs-6" id="ctrlRetStationDisplay">📍 載入中...</span>
+                    </div>
+
+                    <div class="mb-3 p-3 bg-danger bg-opacity-10 border border-danger rounded">
+                        <label class="form-label fw-bold text-dark mb-0">📋 鎖定作業項目： <span class="badge bg-danger fs-6 ms-2">退藥</span></label>
+                    </div>
+                    
+                    <div class="row g-2 mb-3 bg-light p-2 border border-danger rounded align-items-center position-relative">
+                        <div class="col-auto"><label class="form-label fw-bold text-danger small mb-0">操作藥師：</label></div>
+                        <div class="col-5 position-relative">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control border-danger" id="ctrlRetOperatorSearchInput" placeholder="輸入姓名或員編..." autocomplete="off">
+                                <button class="btn btn-outline-danger" type="button" id="ctrlRetResetOperatorBtn">重置</button>
+                            </div>
+                            <div id="ctrl-ret-operator-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050;"></div>
+                        </div>
+                        <div class="col-auto"><strong id="ctrlRetOperatorDisplay" class="text-danger fs-6"></strong></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small mb-1">備註說明 (退藥原因，非必填)</label>
+                        <input type="text" class="form-control border-secondary" id="ctrlRetRemarkInput" placeholder="填寫退藥原因或破瓶情況...">
+                    </div>
+
+                    <div class="btn-group w-100 mb-4 rounded-0">
+                        <input type="radio" class="btn-check" name="ctrlRetInputMode" id="ctrlRetModeBarcode" checked>
+                        <label class="btn btn-outline-danger" for="ctrlRetModeBarcode">條碼退藥</label>
+                        <input type="radio" class="btn-check" name="ctrlRetInputMode" id="ctrlRetModeManual">
+                        <label class="btn btn-outline-danger" for="ctrlRetModeManual">無條碼手動退藥</label>
+                    </div>
+
+                    <div id="ctrlRetBarcodeSection" class="mb-3 position-relative">
+                        <input type="text" class="form-control form-control-lg border-danger shadow-sm" id="ctrlRetBarcodeInput" placeholder="游標置於此，刷入原始管藥條碼帶出資料..." autocomplete="off">
+                        
+                        <div id="ctrlRetBarcodeConfirmSection" class="mt-3 p-3 bg-light border border-danger rounded shadow-sm hidden">
+                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-danger pb-2">
+                                <span class="badge bg-danger fs-6">解析成功，請確認退藥數量</span>
+                                <button class="btn btn-sm btn-outline-secondary" id="ctrlRetCancelBarcodeBtn">取消</button>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12 fs-5"><strong class="text-dark" id="ctrlRetParsedDrug"></strong></div>
+                                <div class="col-4 text-muted small">🏥 病歷號: <strong id="ctrlRetParsedPatient" class="text-dark"></strong></div>
+                                <div class="col-4 text-muted small">🧾 領藥號: <strong id="ctrlRetParsedPrescribe" class="text-dark"></strong></div>
+                                <div class="col-4 text-muted small">📅 日期: <strong id="ctrlRetParsedDate" class="text-dark"></strong></div>
+                                
+                                <div class="col-md-6 mt-3">
+                                    <label class="form-label small text-secondary fw-bold">🔙 關聯退藥號 (非必填)</label>
+                                    <input type="text" class="form-control border-secondary" id="ctrlRetBarcodeReturnNo" placeholder="輸入退藥單號">
+                                </div>
+                                <div class="col-md-6 mt-3">
+                                    <label class="form-label small text-danger fw-bold">🔢 實際退藥數量 (Enter送出)</label>
+                                    <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetBarcodeQty" placeholder="確認數量" min="1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="ctrlRetLoadingOverlay" class="hidden position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style="z-index: 10;">
+                            <span class="spinner-border spinner-border-sm text-danger me-2"></span><span class="fw-bold text-danger">退藥寫入中...</span>
+                        </div>
+                    </div>
+
+                    <div id="ctrlRetManualSection" class="mb-3 hidden position-relative">
+                        <div class="row g-2 position-relative">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold small text-secondary">🔍 模糊搜尋退藥品項</label>
+                                <input type="text" class="form-control form-control-lg border-danger" id="ctrlRetDrugSearchInput" placeholder="輸入管藥代碼、藥名..." autocomplete="off">
+                                <div id="ctrl-ret-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050;"></div>
+                            </div>
+                        </div>
+
+                        <div id="ctrlRetManualQtySection" class="row g-2 mt-2 hidden p-3 bg-light border rounded">
+                            <div class="col-12 mb-1">
+                                <span class="badge bg-danger">手動選定</span> 
+                                <strong class="text-dark ms-2" id="ctrlRetManualSelectedDrug"></strong>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-danger">📅 原處方日期</label>
+                                <input type="date" class="form-control form-control-sm border-danger" id="ctrlRetManualPrescribeDate">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-danger">🏥 原病歷號</label>
+                                <input type="text" class="form-control form-control-sm border-danger" id="ctrlRetManualPatientNo" placeholder="病歷號">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-danger">🧾 原領藥號</label>
+                                <input type="text" class="form-control form-control-sm border-danger" id="ctrlRetManualPrescribeNo" placeholder="領藥號">
+                            </div>
+
+                            <div class="col-md-6 mt-3">
+                                <label class="form-label fw-bold small text-secondary">🔙 關聯退藥號 (非必填)</label>
+                                <input type="text" class="form-control border-secondary" id="ctrlRetManualReturnNo" placeholder="輸入退藥單號">
+                            </div>
+                            <div class="col-md-6 mt-3">
+                                <label class="form-label fw-bold small text-danger">🔢 退藥數量 (Enter送出)</label>
+                                <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetManualQtyInput" placeholder="輸入絕對數量">
+                            </div>
+                        </div>
+                    </div>
+                </div> 
+            </div> 
+            
+            <div class="col-md-5">
+                <div class="card academic-card p-4 h-100 bg-light border-danger">
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="text-danger fw-bold mb-0">今日管藥操作(調/退)紀錄</h5>
+                        </div>
+                        <span class="badge bg-danger fs-6" id="ctrlRetQueueCount">共用清單</span>
+                    </div>
+                    <div id="ctrlRecentListReturnClone" class="flex-grow-1" style="max-height: 600px; overflow-y: auto;">
+                        <div class="text-center text-muted mt-5">切換回調劑分頁查看紀錄</div>
+                    </div>
+                </div>
+            </div> 
+        </div>
     <!-- ✨ 引入 SweetAlert2 (精美彈窗套件) -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="js/app.js"></script>
@@ -520,6 +642,7 @@
 <script src="js/transfer_history.js"></script> <script src="js/manage.js"></script>
 <script src="js/ctrl_drug.js"></script>
 <script src="js/ctrl_history.js"></script>
+<script src="js/ctrl_return.js"></script>
 
 </body>
 </html>
