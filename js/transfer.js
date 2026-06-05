@@ -90,6 +90,49 @@ function loadTransferListFromLocal() {
 // ==========================================
 // 4. 操作藥師與單位初始化 (✨ 改為強制鎖定邏輯)
 // ==========================================
+// ==========================================
+// ✨ 檢查並更新單位的視覺防呆狀態 (必須新增這段)
+// ==========================================
+window.updateDeptUIStatus = function() {
+    const outDept = document.getElementById('outDept');
+    const inDept = document.getElementById('inDept');
+    const wrapper = document.getElementById('deptFlowWrapper');
+    const badge = document.getElementById('deptFlowStatusBadge');
+    const myStation = window.currentUser ? window.currentUser.station : '';
+
+    if (!outDept || !inDept || !badge || !wrapper) return;
+
+    // 判斷是否為預設狀態 (撥出: 管理組, 撥入: 登入單位)
+    const isDefault = (outDept.value === '藥品管理組' && inDept.value === myStation);
+
+    if (isDefault) {
+        // 回歸預設狀態：冷靜、正常
+        outDept.classList.remove('border-danger-thick', 'bg-warning-light');
+        inDept.classList.remove('border-danger-thick', 'bg-warning-light');
+        wrapper.classList.remove('border-danger-thick', 'bg-warning-light');
+        
+        outDept.classList.add('border-theme');
+        inDept.classList.add('border-theme');
+        
+        badge.className = 'badge bg-secondary transition-all';
+        badge.innerHTML = '✅ 系統預設';
+    } else {
+        // 處於自訂狀態：高亮、警告、閃爍
+        outDept.classList.remove('border-theme');
+        inDept.classList.remove('border-theme');
+        
+        outDept.classList.add('border-danger-thick', 'bg-warning-light');
+        inDept.classList.add('border-danger-thick', 'bg-warning-light');
+        wrapper.classList.add('border-danger-thick', 'bg-warning-light');
+        
+        badge.className = 'badge bg-danger pulse-warning fw-bold transition-all';
+        badge.innerHTML = '⚠️ 注意：自訂流向模式';
+    }
+};
+
+// ==========================================
+// 4. 操作藥師與單位初始化 (包含事件綁定)
+// ==========================================
 window.initOperatorAndDept = function() {
     if (!window.currentUser) return;
     setOperator(window.currentUser.empId, window.currentUser.name);
@@ -97,9 +140,16 @@ window.initOperatorAndDept = function() {
     const outDeptSelect = document.getElementById('outDept');
     const inDeptSelect = document.getElementById('inDept');
     
-    // 1. 強制預設：撥出是藥品管理組，撥入是登入單位
+    // 強制預設：撥出是藥品管理組，撥入是登入單位
     if (outDeptSelect) outDeptSelect.value = '藥品管理組';
     if (inDeptSelect && window.currentUser.station) inDeptSelect.value = window.currentUser.station;
+
+    // ✨ 綁定手動切換事件 (只要有變更，立刻觸發變色)
+    if (outDeptSelect) outDeptSelect.addEventListener('change', window.updateDeptUIStatus);
+    if (inDeptSelect) inDeptSelect.addEventListener('change', window.updateDeptUIStatus);
+    
+    // 初始化時先檢查一次狀態
+    window.updateDeptUIStatus();
 };
 
 function setOperator(id, name) {
@@ -269,6 +319,7 @@ async function processDirectEntry(data) {
         // ✨ 3. 每次調撥成立後，強制回到預設單位
         document.getElementById('outDept').value = '藥品管理組';
         document.getElementById('inDept').value = myStation;
+        window.updateDeptUIStatus();
 
         return true;
     } catch (error) {
