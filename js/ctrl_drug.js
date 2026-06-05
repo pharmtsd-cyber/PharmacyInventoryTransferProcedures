@@ -589,7 +589,7 @@ window.reportAnomalyItem = async function(id) {
 // ==========================================
 // 7. 右側管藥操作紀錄 UI 渲染
 // ==========================================
-window.updateCtrlListUI() {
+window.updateCtrlListUI = function() {
     const listDiv = document.getElementById('ctrlRecentList');
     if(!listDiv) return;
 
@@ -702,7 +702,7 @@ function handleCtrlOperatorEnter(e) {
 // ==========================================
 // 9. 本地硬碟暫存與游標輔助機制
 // ==========================================
-window.saveCtrlListToLocal() {
+window.saveCtrlListToLocal = function() {
     if (!window.currentUser || !window.currentUser.station) return;
     const key = `ctrlData_${window.currentUser.station}`;
     localStorage.setItem(key, JSON.stringify(window.ctrlTransferList));
