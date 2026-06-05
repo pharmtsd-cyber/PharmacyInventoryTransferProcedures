@@ -514,6 +514,9 @@
     </div>
 </div>
 
+        <!-- ================================================== -->
+        <!-- ✨ 1-3 級管藥 / 退藥分頁 (已統一排版與右側清單) -->
+        <!-- ================================================== -->
         <div id="content-ctrl-return" class="row g-4 hidden">
             <div class="col-md-7">
                 <div class="card academic-card p-4 h-100 border-danger border-2">
@@ -564,6 +567,7 @@
                                 <div class="col-4 text-muted small">🧾 領藥號: <strong id="ctrlRetParsedPrescribe" class="text-dark"></strong></div>
                                 <div class="col-4 text-muted small">📅 日期: <strong id="ctrlRetParsedDate" class="text-dark"></strong></div>
                                 
+                                <!-- ✨ 統一排版：退藥單號與數量 -->
                                 <div class="col-md-3 mt-3">
                                     <label class="form-label small text-secondary fw-bold">🔙 退藥單號</label>
                                     <input type="text" class="form-control form-control-sm border-secondary" id="ctrlRetBarcodeReturnNo" placeholder="非必填">
@@ -595,6 +599,7 @@
                                 <strong class="text-dark ms-2" id="ctrlRetManualSelectedDrug"></strong>
                             </div>
                             
+                            <!-- ✨ 統一排版：4等分的資訊欄 -->
                             <div class="col-md-3">
                                 <label class="form-label fw-bold small text-danger">📅 原處方日期</label>
                                 <input type="date" class="form-control form-control-sm border-danger" id="ctrlRetManualPrescribeDate">
@@ -612,6 +617,7 @@
                                 <input type="text" class="form-control form-control-sm border-secondary" id="ctrlRetManualReturnNo" placeholder="非必填">
                             </div>
 
+                            <!-- ✨ 統一排版：佔滿全寬的數字輸入框 -->
                             <div class="col-md-12 mt-3">
                                 <label class="form-label fw-bold small text-danger">🔢 退藥數量 (Enter送出)</label>
                                 <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetManualQtyInput" placeholder="輸入絕對數量，按下 Enter 寫入">
@@ -626,6 +632,7 @@
                     <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <h5 class="text-danger fw-bold mb-0" id="ctrlRetListTitle">今日管藥操作紀錄</h5>
+                            <!-- ✨ 新增：同步今日/近兩日的切換按鈕 -->
                             <div class="btn-group btn-group-sm" role="group">
                                 <input type="radio" class="btn-check" name="ctrlRetTimeFilter" id="ctrlRetTimeToday" checked>
                                 <label class="btn btn-outline-danger px-2 py-0" for="ctrlRetTimeToday" style="font-size: 0.75rem;">今日</label>
@@ -635,6 +642,7 @@
                         </div>
                         <span class="badge bg-danger fs-6" id="ctrlRetQueueCount">0 筆</span>
                     </div>
+                    <!-- ✨ 獨立的 ID，讓 JS 可以同步渲染過來 -->
                     <div id="ctrlRetRecentList" class="flex-grow-1" style="max-height: 600px; overflow-y: auto;">
                         <div class="text-center text-muted mt-5">目前無資料</div>
                     </div>
