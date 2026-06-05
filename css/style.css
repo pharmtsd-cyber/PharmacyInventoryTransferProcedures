@@ -190,3 +190,20 @@ body.mode-public .academic-tabs .nav-link.active {
 .border-brown { border-color: #654321 !important; }
 .bg-brown { background-color: #654321 !important; color: #ffffff !important; }
 .text-brown { color: #654321 !important; }
+
+/* ✨ 新增：非預設流向的警告閃爍動畫與樣式 */
+@keyframes pulse-danger {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+.pulse-warning {
+    animation: pulse-danger 2s infinite;
+}
+.bg-warning-light {
+    background-color: #fff3cd !important; /* 淡淡的警告黃底色 */
+}
+.border-danger-thick {
+    border-color: #dc3545 !important;
+    border-width: 2px !important;
+}
