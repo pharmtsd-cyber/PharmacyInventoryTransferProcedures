@@ -514,7 +514,7 @@
     </div>
 </div>
 
-    <div id="content-ctrl-return" class="row g-4 hidden">
+        <div id="content-ctrl-return" class="row g-4 hidden">
             <div class="col-md-7">
                 <div class="card academic-card p-4 h-100 border-danger border-2">
                     <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
@@ -564,11 +564,11 @@
                                 <div class="col-4 text-muted small">🧾 領藥號: <strong id="ctrlRetParsedPrescribe" class="text-dark"></strong></div>
                                 <div class="col-4 text-muted small">📅 日期: <strong id="ctrlRetParsedDate" class="text-dark"></strong></div>
                                 
-                                <div class="col-md-6 mt-3">
-                                    <label class="form-label small text-secondary fw-bold">🔙 關聯退藥號 (非必填)</label>
-                                    <input type="text" class="form-control border-secondary" id="ctrlRetBarcodeReturnNo" placeholder="輸入退藥單號">
+                                <div class="col-md-3 mt-3">
+                                    <label class="form-label small text-secondary fw-bold">🔙 退藥單號</label>
+                                    <input type="text" class="form-control form-control-sm border-secondary" id="ctrlRetBarcodeReturnNo" placeholder="非必填">
                                 </div>
-                                <div class="col-md-6 mt-3">
+                                <div class="col-md-9 mt-3">
                                     <label class="form-label small text-danger fw-bold">🔢 實際退藥數量 (Enter送出)</label>
                                     <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetBarcodeQty" placeholder="確認數量" min="1">
                                 </div>
@@ -595,26 +595,26 @@
                                 <strong class="text-dark ms-2" id="ctrlRetManualSelectedDrug"></strong>
                             </div>
                             
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small text-danger">📅 原處方日期</label>
                                 <input type="date" class="form-control form-control-sm border-danger" id="ctrlRetManualPrescribeDate">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small text-danger">🏥 原病歷號</label>
                                 <input type="text" class="form-control form-control-sm border-danger" id="ctrlRetManualPatientNo" placeholder="病歷號">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label fw-bold small text-danger">🧾 原領藥號</label>
                                 <input type="text" class="form-control form-control-sm border-danger" id="ctrlRetManualPrescribeNo" placeholder="領藥號">
                             </div>
-
-                            <div class="col-md-6 mt-3">
-                                <label class="form-label fw-bold small text-secondary">🔙 關聯退藥號 (非必填)</label>
-                                <input type="text" class="form-control border-secondary" id="ctrlRetManualReturnNo" placeholder="輸入退藥單號">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small text-secondary">🔙 退藥單號</label>
+                                <input type="text" class="form-control form-control-sm border-secondary" id="ctrlRetManualReturnNo" placeholder="非必填">
                             </div>
-                            <div class="col-md-6 mt-3">
+
+                            <div class="col-md-12 mt-3">
                                 <label class="form-label fw-bold small text-danger">🔢 退藥數量 (Enter送出)</label>
-                                <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetManualQtyInput" placeholder="輸入絕對數量">
+                                <input type="number" class="form-control border-danger fw-bold fs-5" id="ctrlRetManualQtyInput" placeholder="輸入絕對數量，按下 Enter 寫入">
                             </div>
                         </div>
                     </div>
@@ -625,12 +625,18 @@
                 <div class="card academic-card p-4 h-100 bg-light border-danger">
                     <div class="d-flex justify-content-between align-items-center border-bottom border-danger pb-2 mb-3">
                         <div class="d-flex align-items-center gap-2">
-                            <h5 class="text-danger fw-bold mb-0">今日管藥操作(調/退)紀錄</h5>
+                            <h5 class="text-danger fw-bold mb-0" id="ctrlRetListTitle">今日管藥操作紀錄</h5>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="ctrlRetTimeFilter" id="ctrlRetTimeToday" checked>
+                                <label class="btn btn-outline-danger px-2 py-0" for="ctrlRetTimeToday" style="font-size: 0.75rem;">今日</label>
+                                <input type="radio" class="btn-check" name="ctrlRetTimeFilter" id="ctrlRetTimeTwoDays">
+                                <label class="btn btn-outline-danger px-2 py-0" for="ctrlRetTimeTwoDays" style="font-size: 0.75rem;">近兩日</label>
+                            </div>
                         </div>
-                        <span class="badge bg-danger fs-6" id="ctrlRetQueueCount">共用清單</span>
+                        <span class="badge bg-danger fs-6" id="ctrlRetQueueCount">0 筆</span>
                     </div>
-                    <div id="ctrlRecentListReturnClone" class="flex-grow-1" style="max-height: 600px; overflow-y: auto;">
-                        <div class="text-center text-muted mt-5">切換回調劑分頁查看紀錄</div>
+                    <div id="ctrlRetRecentList" class="flex-grow-1" style="max-height: 600px; overflow-y: auto;">
+                        <div class="text-center text-muted mt-5">目前無資料</div>
                     </div>
                 </div>
             </div> 
