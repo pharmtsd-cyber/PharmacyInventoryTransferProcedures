@@ -81,7 +81,7 @@
             <li class="nav-item"><a class="nav-link" data-tab="history" href="#">歷史查詢</a></li>
         </ul>
 
-<div id="content-transfer" class="row g-4 hidden" style="align-items: stretch; min-height: calc(100vh - 180px);">
+    <div id="content-transfer" class="row g-4 hidden" style="align-items: stretch; min-height: calc(100vh - 180px);">
             <div class="col-lg-7 d-flex flex-column">
                 <div class="card academic-card p-4 border-theme border-2 d-flex flex-column" style="height: 100%;">
                     <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
@@ -423,6 +423,178 @@
                     </div>
                 </div>
             </div> 
+        </div>
+
+        <div id="content-transfer-history" class="hidden">
+            <div class="card academic-card p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-theme fw-bold mb-0">📊 一般藥品調撥紀錄表</h5>
+                </div>
+                
+                <div class="row g-2 mb-1 bg-light p-3 border border-theme rounded align-items-end border-bottom-0 rounded-bottom-0">
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-theme">📤 撥出單位</label>
+                        <select class="form-select form-select-sm border-theme" id="transHistOutDept">
+                            <option value="全部">全部單位</option>
+                            <option value="藥品管理組">藥品管理組</option>
+                            <option value="門診藥局">門診藥局</option>
+                            <option value="住院藥局">住院藥局</option>
+                            <option value="急診藥局">急診藥局</option>
+                            <option value="調配藥局">調配藥局</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-theme">📥 撥入單位</label>
+                        <select class="form-select form-select-sm border-theme" id="transHistInDept">
+                            <option value="全部">全部單位</option>
+                            <option value="藥品管理組">藥品管理組</option>
+                            <option value="門診藥局">門診藥局</option>
+                            <option value="住院藥局">住院藥局</option>
+                            <option value="急診藥局">急診藥局</option>
+                            <option value="調配藥局">調配藥局</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-theme">📅 開始日期</label>
+                        <input type="date" class="form-control form-control-sm border-theme" id="transHistStartDate">
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-theme">📅 結束日期</label>
+                        <input type="date" class="form-control form-control-sm border-theme" id="transHistEndDate">
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-4 bg-light p-3 border border-theme rounded align-items-end border-top-0 rounded-top-0">
+                    <div class="col-xl-5 col-md-5 position-relative">
+                        <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="transHistDrugSearch" placeholder="輸入藥碼或藥名..." autocomplete="off">
+                        <div id="trans-hist-drug-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-4 col-md-4 position-relative">
+                        <label class="form-label fw-bold small text-secondary">👤 調劑藥師</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="transHistOpSearch" placeholder="輸入姓名或員編..." autocomplete="off">
+                        <div id="trans-hist-op-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-2 col-md-2">
+                        <label class="form-label fw-bold small text-secondary">⚖️ 帳目狀態</label>
+                        <select class="form-select form-select-sm border-secondary" id="transHistStatusSelect">
+                            <option value="全部">全部</option>
+                            <option value="正常">正常</option>
+                            <option value="已作廢">已作廢</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-1 col-md-1">
+                        <button class="btn btn-theme btn-sm w-100 fw-bold shadow-sm" id="transHistSearchBtn">🔍 篩選</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                        <thead class="table-theme fw-bold sticky-top" style="z-index: 5;">
+                            <tr>
+                                <th style="width: 12%;">調劑時間</th>
+                                <th style="width: 10%;">作業項目</th>
+                                <th style="width: 12%;">藥品代碼</th>
+                                <th>藥品名稱</th>
+                                <th style="width: 8%;">異動數量</th>
+                                <th style="width: 12%;">調劑藥師</th>
+                                <th style="width: 10%;">狀態 ／ 備註</th>
+                                <th style="width: 12%;">編輯 ／ 作廢</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transHistTableBody">
+                            <tr><td colspan="8" class="text-muted py-4">請點擊篩選按鈕載入操作清單</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-ctrl-history" class="hidden">
+            <div class="card academic-card p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-danger fw-bold mb-0">📊 一到三級管制藥操作紀錄大表</h5>
+                </div>
+                
+                <div class="row g-2 mb-1 bg-light p-3 border border-danger rounded align-items-end border-bottom-0 rounded-bottom-0">
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-danger">📥 作業單位</label>
+                        <select class="form-select form-select-sm border-danger" id="ctrlHistStationSelect">
+                            <option value="全部">全部單位</option>
+                            <option value="門診藥局">門診藥局</option>
+                            <option value="住院藥局">住院藥局</option>
+                            <option value="急診藥局">急診藥局</option>
+                            <option value="調配藥局">調配藥局</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-danger">📋 作業項目</label>
+                        <select class="form-select form-select-sm border-danger" id="ctrlHistActionSelect">
+                            <option value="全部">全部項目</option>
+                            <option value="處方調劑">處方調劑 (-1)</option>
+                            <option value="退藥">退藥 (-1)</option>
+                            <option value="處方刪除">處方刪除 (+1)</option>
+                            <option value="盤盈">盤盈 (+1)</option>
+                            <option value="盤虧">盤虧 (-1)</option>
+                            <option value="報銷破瓶">報銷破瓶 (-1)</option>
+                            <option value="公用調入">公用調入 (+1)</option>
+                            <option value="公用調出">公用調出 (-1)</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-danger">📅 開始日期</label>
+                        <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistStartDate">
+                    </div>
+                    <div class="col-xl-3 col-md-3">
+                        <label class="form-label fw-bold small text-danger">📅 結束日期</label>
+                        <input type="date" class="form-control form-control-sm border-danger" id="ctrlHistEndDate">
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end border-top-0 rounded-top-0">
+                    <div class="col-xl-5 col-md-5 position-relative">
+                        <label class="form-label fw-bold small text-secondary">🔍 藥品模糊篩選</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistDrugSearch" placeholder="輸入管藥代碼或藥名..." autocomplete="off">
+                        <div id="ctrl-hist-drug-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-4 col-md-4 position-relative">
+                        <label class="form-label fw-bold small text-secondary">👤 操作藥師</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="ctrlHistOpSearch" placeholder="輸入姓名或員編..." autocomplete="off">
+                        <div id="ctrl-hist-op-autocomplete-list" class="autocomplete-items shadow w-100 position-absolute" style="z-index: 1050; top: 100%; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="col-xl-2 col-md-2">
+                        <label class="form-label fw-bold small text-secondary">⚖️ 帳目狀態</label>
+                        <select class="form-select form-select-sm border-secondary" id="ctrlHistStatusSelect">
+                            <option value="全部">全部</option>
+                            <option value="正常">正常</option>
+                            <option value="已作廢">已作廢</option>
+                        </select>
+                    </div>
+                    <div class="col-xl-1 col-md-1">
+                        <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="ctrlHistSearchBtn">🔍 篩選</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                        <thead class="table-danger fw-bold sticky-top" style="z-index: 5;">
+                            <tr>
+                                <th style="width: 12%;">操作時間</th>
+                                <th style="width: 10%;">作業項目</th>
+                                <th style="width: 12%;">藥品代碼</th>
+                                <th>藥品名稱</th>
+                                <th style="width: 8%;">異動數量</th>
+                                <th style="width: 12%;">操作藥師</th>
+                                <th style="width: 10%;">狀態 ／ 備註</th>
+                                <th style="width: 12%;">編輯 ／ 作廢</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ctrlHistTableBody">
+                            <tr><td colspan="8" class="text-muted py-4">請點擊篩選按鈕載入操作清單</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     <!-- ✨ 引入 SweetAlert2 (精美彈窗套件) -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
