@@ -231,3 +231,20 @@ body.mode-public .academic-tabs .nav-link.active {
     flex: 1 1 0 !important; /* 🪄 Flexbox 魔法：強制清單只能在卡片剩餘的空間內伸展，超過的資料立刻轉為內部捲軸！ */
     overflow-y: auto !important;
 }
+
+/* ================================================== */
+/* ✨ 儀表板高度動態鎖定與內部捲軸 (解決無限拉長) */
+/* ================================================== */
+
+/* 1. 鎖定三個作業區的總高度為螢幕大小，不准被撐開 */
+#content-transfer, #content-ctrl-drug, #content-ctrl-return {
+    height: calc(100vh - 180px) !important;
+    min-height: 600px !important; /* 🛡️ 防呆：確保小筆電螢幕不會把左邊輸入框擠扁 */
+}
+
+/* 2. 破解 Flexbox 內容撐破外框的 Bug，強制右側清單收水產生捲軸 */
+#recentList, #ctrlRecentList, #ctrlRetRecentList {
+    flex: 1 1 0 !important; 
+    min-height: 0 !important; /* 👈 這是最關鍵的魔法！強迫容器收縮，不准無限延伸 */
+    overflow-y: auto !important;
+}
