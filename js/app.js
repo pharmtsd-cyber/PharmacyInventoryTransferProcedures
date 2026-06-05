@@ -208,6 +208,7 @@ function switchTab(tabName) {
     const activeTab = document.querySelector(`.academic-tabs .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
+    // ✨ 這裡補上了 'ctrl-return'，這樣切換分頁時舊的才會正確隱藏
     ['transfer', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
