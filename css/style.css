@@ -207,3 +207,9 @@ body.mode-public .academic-tabs .nav-link.active {
     border-color: #dc3545 !important;
     border-width: 2px !important;
 }
+
+/* ✨ 萬用覆蓋：被選中的頁籤，裡面的文字與圖示一律強制變為白色 */
+.academic-tabs .nav-link.active,
+.academic-tabs .nav-link.active * {
+    color: #ffffff !important;
+}
