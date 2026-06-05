@@ -171,13 +171,13 @@ window.updateCtrlHistoryTableUI = function() {
 
     let html = '';
     filtered.forEach(item => {
-        const isVoided = item.recordStatus === '已作廢';
+        const isVoided = item.recordStatus === '已作廢' || item.recordStatus === '已作废';
         const isQtyNegative = item.quantity < 0;
         const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
+        
         const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
-        const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-success">正常</span>';
-
-        // ✨ 動態判定通報狀態與整行底色
+        const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-danger">正常</span>';
+        
         const isReported = item.reportStatus === '未處理' || item.reportStatus === '處理中';
         const isResolved = item.reportStatus === '已結案';
         let rowStyle = isVoided ? 'table-secondary text-muted' : '';
@@ -187,38 +187,43 @@ window.updateCtrlHistoryTableUI = function() {
         const reportBtnClass = (isReported || isResolved) ? 'btn-outline-warning text-dark fw-bold' : 'btn-outline-secondary';
         const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
 
-        // ✨ 組合「四大類別」履歷 (乾淨俐落)
+        // 處理明細快取...
         let detailHtml = ``;
         if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${item.operatorName || '未知'})<br><span class="text-secondary">${item.remark}</span></div>`;
         if (item.voidReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>🗑️【作廢軌跡】</strong> (👤 ${item.voidName || '未知'} - ${item.voidEmpID || ''})<br><span class="text-danger">${item.voidReason}</span></div>`;
         if (item.reportReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>⚠️【異常通報】</strong> (👤 ${item.reportName || '未知'} - ${item.reportEmpID || ''})<br>狀態：<span class="badge bg-warning text-dark">${item.reportStatus || '未處理'}</span><br><span class="text-dark">${item.reportReason}</span></div>`;
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong> (👤 ${item.managerName || '未知'} - ${item.managerEmpID || ''})<br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
         if (!detailHtml) detailHtml = "<div class='text-muted text-center py-3'>目前無任何備註或通報紀錄。</div>";
-        // ✨ 存進字典
+
         window.ctrlDetailCache[item.id] = detailHtml;
 
+        const dispDate = item.timestamp ? item.timestamp.split(' ')[0] : '';
+        const dispTime = item.timestamp ? item.timestamp.split(' ')[1] : '';
+        
+        // ✨ 新增：抓取處方日期 (如果沒有資料就顯示空字串或 '-')
+        const prescribeDateDisplay = item.prescribeDate && item.prescribeDate !== "無" ? item.prescribeDate : '-';
+
+        // ✨ 確保這邊的 <td> 數量剛好是 9 個！
         html += `
             <tr class="${rowStyle}">
                 <td style="font-size: 0.8rem;" class="text-start font-monospace">
-                    <div>${item.timestamp.split(' ')[0]}</div>
-                    <div class="text-secondary">${item.timestamp.split(' ')[1] || ''}</div>
+                    <div>${dispDate}</div>
+                    <div class="text-secondary">${dispTime}</div>
                 </td>
-                <td><span class="badge ${isVoided ? 'bg-secondary' : (isQtyNegative ? 'bg-danger' : 'bg-success')}">${item.actionType}</span></td>
-                <td class="font-monospace text-start">
-                    <div class="fw-bold fs-6">${item.drugCode || item.code}</div>
-                    ${item.sap ? `<div class="small text-muted">${item.sap}</div>` : ''}
-                </td>
+                <td><span class="badge ${isVoided ? 'bg-secondary' : 'bg-danger'}">${item.actionType || ''}</span></td>
+                
+                <td class="font-monospace text-secondary" style="font-size: 0.85rem;">${prescribeDateDisplay}</td>
+                
+                <td class="font-monospace text-start fw-bold fs-6">${item.drugCode || ''}</td>
                 <td class="text-start">
-                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || item.name}</div>
+                    <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || ''}</div>
+                    ${item.prescribeNo && !item.prescribeNo.includes('手動') ? `<div class="badge bg-light text-dark border mt-1">領藥號:${item.prescribeNo}</div>` : ''}
+                    ${item.returnNo && item.returnNo !== "" ? `<div class="badge bg-warning text-dark border mt-1 ms-1">退藥單:${item.returnNo}</div>` : ''}
                 </td>
-                <td class="text-start font-monospace" style="font-size: 0.8rem;">
-                    <div>🏥 ${item.patientNo && !item.patientNo.includes('手動') ? item.patientNo : '<span class="text-muted">-</span>'}</div>
-                    <div>🧾 ${item.prescribeNo && !item.prescribeNo.includes('手動') ? item.prescribeNo : '<span class="text-muted">-</span>'}</div>
-                </td>
-                <td><span class="${qtyClass} fs-5">${qtyDisplay} 支</span></td>
+                <td><span class="${qtyClass} fs-5">${qtyDisplay}</span></td>
                 <td>
-                    <div class="fw-bold">${item.operatorName}</div>
-                    <small class="text-muted font-monospace">${item.operatorId}</small>
+                    <div class="fw-bold">${item.operatorName || ''}</div>
+                    <small class="text-muted font-monospace">${item.operatorId || ''}</small>
                 </td>
                 <td>
                     <div class="mb-1">${statusBadge}</div>
