@@ -213,3 +213,18 @@ body.mode-public .academic-tabs .nav-link.active {
 .academic-tabs .nav-link.active * {
     color: #ffffff !important;
 }
+
+/* ✨ 讓主工作區卡片完美延展至螢幕底部的專屬引擎 */
+.workspace-row {
+    align-items: stretch !important;
+    min-height: calc(100vh - 190px); /* 扣除上方標題與頁籤的高度 */
+}
+.workspace-card {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important; 
+}
+.workspace-scroll-list {
+    flex-grow: 1 !important;
+    overflow-y: auto !important;
+}
