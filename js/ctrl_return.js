@@ -275,8 +275,22 @@ async function processCtrlRetEntry(data) {
     }
 
     const remarkValue = document.getElementById('ctrlRetRemarkInput').value.trim();
-    // 退藥一律為負數庫存扣帳 (-1)
-    const finalQty = data.quantity * -1; 
+    
+    // ✨ 動態抓取系統參數中「退藥」的正負號設定 (比照調劑分頁)
+    let sign = 1; // 預設為正1
+    if (window.sysParamsDB) {
+        const retParam = window.sysParamsDB.find(p => 
+            p.title === '管藥作業項目' && 
+            p.itemName === '退藥' && 
+            (p.station === window.currentUser.station || p.station === '全院通用')
+        );
+        if (retParam) {
+            sign = parseInt(retParam.itemValue, 10) || 1;
+        }
+    }
+
+    // 將使用者確認的數量乘上系統參數的符號
+    const finalQty = data.quantity * sign; 
 
     const payload = {
         action: "createCtrl",
@@ -285,7 +299,7 @@ async function processCtrlRetEntry(data) {
         drugCode: data.drugCode,
         drugName: data.drugName,
         sap: data.sapCode,
-        quantity: finalQty, // ✨ 負數退庫
+        quantity: finalQty, // ✨ 寫入動態計算過後的數量
         actionType: "退藥", // ✨ 強制作業屬性
         mode: data.mode,
         raw: data.raw,
@@ -314,8 +328,6 @@ async function processCtrlRetEntry(data) {
     const overlay = document.getElementById('ctrlRetLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
 
-    // 呼叫原有的 CTRL_API_URL 寫入 SharePoint
-    // (注意：此處因作用域需重宣告 API URL，或確保其為全域)
     const CTRL_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ"; 
 
     try {
