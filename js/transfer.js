@@ -459,11 +459,25 @@ function updateTransferListUI() {
     const listDiv = document.getElementById('transferRecentList') || document.getElementById('recentList');
     if(!listDiv) return;
 
+    const myStation = window.currentUser ? window.currentUser.station : '';
     const todayStr = new Date().toLocaleDateString();
+    
     const filteredList = transferList.filter(item => {
         if (window.transferTimeFilter === 'today') {
-            return new Date(item.rawTime).toLocaleDateString() === todayStr;
+            if (new Date(item.rawTime).toLocaleDateString() !== todayStr) return false;
         }
+
+        // ✨ 統一欄位名稱防護 (避免 API 拋回小寫)
+        const outD = item.outdept || item.outDept || '';
+        const inD = item.indept || item.inDept || '';
+        
+        // ✨ 過濾條件：與登入單位有關 (撥出或撥入)，或是「本機操作」(操作者是自己)
+        const isMyStationInvolved = (outD === myStation || inD === myStation);
+        const isMyOp = (window.currentUser && item.operatorId === window.currentUser.empId);
+        
+        // 如果不是我的單位，且不是我操作的，就不顯示
+        if (!isMyStationInvolved && !isMyOp) return false;
+
         return true; 
     });
 
@@ -479,18 +493,22 @@ function updateTransferListUI() {
         const isVoided = item.recordStatus === '已作廢' || item.recordStatus === '已作废';
         const statusText = isVoided ? ' (已作廢)' : '';
         
-        // ✨ 1. 一律顯示正整數，直接顯示明確流向
+        // ✨ 統一擷取欄位，避免 undefined
+        const outD = item.outdept || item.outDept || '未知';
+        const inD = item.indept || item.inDept || '未知';
+        const dCode = item.drugcode || item.drugCode || '';
+        const dName = item.drugname || item.drugName || '';
+
         const rawQty = Math.abs(parseInt(item.quantity, 10)); 
-        const directionText = `${item.outDept} ➔ ${item.inDept}`;
+        const directionText = `${outD} ➔ ${inD}`;
 
-        // ✨ 2. 動態判定主題色 (絕對依據「撥入單位」)
+        // 動態判定主題色 (絕對依據「撥入單位」)
         let themeColorClass = 'primary'; // 預設門診 (藍)
-        if (item.inDept.includes('急診')) themeColorClass = 'danger'; // 紅
-        else if (item.inDept.includes('住院')) themeColorClass = 'success'; // 綠
-        else if (item.inDept.includes('調配')) themeColorClass = 'brown'; // 棕
-        else if (item.inDept.includes('管理組') || item.inDept.includes('藥庫')) themeColorClass = 'secondary'; // 灰
+        if (inD.includes('急診')) themeColorClass = 'danger'; // 紅
+        else if (inD.includes('住院')) themeColorClass = 'success'; // 綠
+        else if (inD.includes('調配')) themeColorClass = 'brown'; // 棕
+        else if (inD.includes('管理組') || inD.includes('藥庫')) themeColorClass = 'secondary'; // 灰
 
-        // ✨ 3. 依據主題色，渲染卡片左側線條、Badge與數量的顏色
         const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : `border-${themeColorClass}`;
         const badgeColor = isVoided ? 'bg-secondary' : `bg-${themeColorClass}`;
         const qtyClass = isVoided ? 'text-secondary' : `text-${themeColorClass} fw-bold`;
@@ -500,12 +518,12 @@ function updateTransferListUI() {
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
                         <span class="badge ${badgeColor} text-white me-2">${directionText}${statusText}</span>
-                        <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${item.drugCode}</strong>
+                        <strong class="${isVoided ? 'text-muted text-decoration-line-through' : 'text-dark'}">${dCode}</strong>
                         ${item.prescribeNo && !item.prescribeNo.includes('手動') && item.prescribeNo !== '無' ? `<span class="badge bg-light text-dark border ms-1">領藥號:${item.prescribeNo}</span>` : ''}
                     </div>
                     <small class="text-muted" style="font-size: 0.7rem;">${item.timestamp.split(' ')[1] || item.timestamp}</small>
                 </div>
-                <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${item.drugName}</div>
+                <div class="fw-bold ${isVoided ? 'text-muted' : 'text-dark'} small my-1 text-truncate" style="max-width:280px;">${dName}</div>
                 ${item.remark ? `<div class="small text-secondary font-monospace" style="font-size:0.8rem;">📝 備註: ${item.remark}</div>` : ''}
                 
                 <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
