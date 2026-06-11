@@ -14,10 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const inDept = document.getElementById('transHistInDept');
             const outDept = document.getElementById('transHistOutDept');
             
-            // ✨ 1. 動態插入「檢視範圍」切換按鈕
+            // ✨ 動態插入「檢視範圍」切換按鈕 (若尚未產生)
             const titleContainer = document.querySelector('#content-transfer-history .border-bottom.pb-2.mb-3');
             if (titleContainer && !document.getElementById('transHistScopeGroup')) {
-                titleContainer.classList.remove('d-flex'); // 移除預設排版
+                titleContainer.classList.remove('d-flex'); 
                 titleContainer.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center w-100">
                         <div class="d-flex align-items-center gap-3">
@@ -31,16 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
+                
+                // 綁定切換事件
                 document.getElementById('scopeMyStation').addEventListener('change', window.renderTransHistoryTableUI);
-                document.getElementById('scopeAll').addEventListener('change', () => {
-                    // 切換到全院時，貼心地把下拉選單歸零
-                    if(inDept) inDept.value = '全部';
-                    if(outDept) outDept.value = '全部';
-                    window.renderTransHistoryTableUI();
-                });
+                document.getElementById('scopeAll').addEventListener('change', window.renderTransHistoryTableUI);
             }
 
-            // 預設帶入 (只有初次點擊或重整時)
+            // 預設帶入初始過濾值
             if (window.currentUser && window.currentUser.station) {
                 if (window.currentUser.station === '藥品管理組') {
                     if (inDept) inDept.value = '全部';
@@ -78,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.style.cursor = "pointer";
                 item.addEventListener('click', () => {
                     drugSearchInput.value = drug.code; list.innerHTML = ''; 
-                    window.renderTransHistoryTableUI(); // 本地過濾
+                    window.renderTransHistoryTableUI(); 
                 });
                 list.appendChild(item);
             });
@@ -101,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.style.cursor = "pointer";
                 item.addEventListener('click', () => {
                     opSearchInput.value = user.name; list.innerHTML = ''; 
-                    window.renderTransHistoryTableUI(); // 本地過濾
+                    window.renderTransHistoryTableUI(); 
                 });
                 list.appendChild(item);
             });
@@ -138,7 +135,6 @@ window.fetchTransHistoryFromDB = async function() {
     const tbody = document.getElementById('transHistTableBody');
     if (!tbody) return;
 
-// 顯示載入動畫 (✨ 已套用主題色)
     tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-theme me-2" role="status"></div><b class="text-theme fs-5">連線至 SharePoint 讀取即時資料中...</b></td></tr>`;
 
     try {
@@ -162,39 +158,58 @@ window.renderTransHistoryTableUI = function() {
     const tbody = document.getElementById('transHistTableBody');
     if (!tbody) return;
 
+    // ✨ 診斷日誌：若資料庫有資料，直接在控制台印出第一筆，方便查看 SharePoint 真正吐出來的欄位名
+    if (window.transApiDataCache && window.transApiDataCache.length > 0) {
+        console.log("🔍 [大表除錯日誌] 資料庫回傳的第一筆原始資料結構如下：", window.transApiDataCache[0]);
+    }
+
+    const scopeMyStation = document.getElementById('scopeMyStation');
+    const isScopeMyStation = scopeMyStation ? scopeMyStation.checked : true; 
+
+    const outDeptSelect = document.getElementById('transHistOutDept');
+    const inDeptSelect = document.getElementById('transHistInDept');
+
+    // ✨ 優化 1：控制下拉選單的啟用/禁用狀態，並在選中登入單位時強制無視選單
+    if (isScopeMyStation) {
+        if (outDeptSelect) outDeptSelect.disabled = true;
+        if (inDeptSelect) inDeptSelect.disabled = true;
+    } else {
+        if (outDeptSelect) outDeptSelect.disabled = false;
+        if (inDeptSelect) inDeptSelect.disabled = false;
+    }
+
     const startDate = document.getElementById('transHistStartDate').value;
     const endDate = document.getElementById('transHistEndDate').value;
     const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
     const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
     const statusSelect = document.getElementById('transHistStatusSelect').value;
 
-    const filterOutDept = document.getElementById('transHistOutDept').value;
-    const filterInDept = document.getElementById('transHistInDept').value;
+    const filterOutDept = outDeptSelect ? outDeptSelect.value : '全部';
+    const filterInDept = inDeptSelect ? inDeptSelect.value : '全部';
 
     const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
     const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
 
     const myStation = window.currentUser ? window.currentUser.station : '';
-    const scopeMyStation = document.getElementById('scopeMyStation');
-    const isScopeMyStation = scopeMyStation ? scopeMyStation.checked : true; // 預設看自己
 
     const filtered = window.transApiDataCache.filter(item => {
-        // ✨ 統一欄位名稱 (防護 SharePoint 拋回來的全小寫或駝峰式命名)
-        const outD = item.outdept || item.outDept || item.OutDept || '';
-        const inD = item.indept || item.inDept || item.InDept || '';
-        const dCode = item.drugcode || item.drugCode || item.DrugCode || '';
-        const dName = item.drugname || item.drugName || item.DrugName || '';
-        const sap = item.sapcode || item.sapCode || item.sap || item.Sap || '';
-        const opId = item.operatorid || item.operatorId || item.OperatorId || '';
-        const opName = item.operatorname || item.operatorName || item.OperatorName || '';
+        // ✨ 全名稱防護網：相容大寫、小寫、地端、雲端各種極端欄位命名
+        const outD = item.outDept || item.outdept || item.OutDept || '';
+        const inD = item.inDept || item.indept || item.InDept || '';
+        const dCode = item.drugCode || item.drugcode || item.DrugCode || '';
+        const dName = item.drugName || item.drugname || item.DrugName || '';
+        const sap = item.sap || item.sapCode || item.sapcode || item.Sap || '';
+        const opId = item.operatorId || item.operatorid || item.OperatorId || '';
+        const opName = item.operatorName || item.operatorname || item.OperatorName || '';
 
-        // ✨ 範圍篩選：如果選擇「登入單位紀錄」，強制過濾流向
+        // ✨ 優化 1 核心邏輯：若是「登入單位紀錄」模式，只看與自己相關的流向，完全不套用畫面的下拉選單
         if (isScopeMyStation && myStation) {
             if (outD !== myStation && inD !== myStation) return false;
+        } else {
+            // 「全藥局紀錄」模式下才受下拉選單過濾
+            if (filterOutDept !== '全部' && outD !== filterOutDept) return false;
+            if (filterInDept !== '全部' && inD !== filterInDept) return false;
         }
-
-        if (filterOutDept !== '全部' && outD !== filterOutDept) return false;
-        if (filterInDept !== '全部' && inD !== filterInDept) return false;
         
         let itemTimeMs = 0;
         if (item.timestamp) itemTimeMs = new Date(item.timestamp).getTime();
@@ -223,19 +238,25 @@ window.renderTransHistoryTableUI = function() {
     let html = '';
 
     filtered.forEach(item => {
-        const outD = item.outdept || item.outDept || item.OutDept || '未知';
-        const inD = item.indept || item.inDept || item.InDept || '未知';
-        const dCode = item.drugcode || item.drugCode || item.DrugCode || '';
-        const dName = item.drugname || item.drugName || item.DrugName || '';
-        const sapValue = item.sapcode || item.sapCode || item.sap || item.Sap || '未知';
-        const modeValue = item.inputmode || item.inputMode || item.mode || item.Mode || '未知';
-        const opId = item.operatorid || item.operatorId || item.OperatorId || '';
-        const opName = item.operatorname || item.operatorName || item.OperatorName || '';
+        // ✨ 全名稱防護網 (渲染階段)
+        const outD = item.outDept || item.outdept || item.OutDept || '未知';
+        const inD = item.inDept || item.indept || item.InDept || '未知';
+        const dCode = item.drugCode || item.drugcode || item.DrugCode || '無院內碼';
+        const dName = item.drugName || item.drugname || item.DrugName || '未知藥品';
+        
+        // 針對 SAP 碼做多重抓取防護
+        const sapValue = item.sap || item.sapCode || item.sapcode || item.Sap || '未知';
+        
+        // 針對作業模式 (條碼/手動) 做多重抓取防護
+        const modeValue = item.mode || item.Mode || item.inputMode || item.inputmode || item.input_mode || '未知';
+        
+        const opId = item.operatorId || item.operatorid || item.OperatorId || '';
+        const opName = item.operatorName || item.operatorname || item.OperatorName || '';
 
         const currentStatus = item.recordStatus || item.RecordStatus || "正常";
         const isVoided = (currentStatus === '已作废' || currentStatus === '已作廢');
         
-        const rawQty = Math.abs(parseInt(item.quantity, 10)); 
+        const rawQty = Math.abs(parseInt(item.quantity, 10)) || 0; 
 
         // 動態判定主題色 (絕對依據「撥入單位」)
         let themeColorClass = 'primary'; 
@@ -263,9 +284,9 @@ window.renderTransHistoryTableUI = function() {
 
         let detailHtml = ``;
         if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${opName})<br><span class="text-secondary">${item.remark}</span></div>`;
-        const voidReason = item.voidreason || item.voidReason || item.VoidReason || '';
-        const voidName = item.voidname || item.voidName || item.VoidName || '';
-        const voidEmpID = item.voidempid || item.voidEmpID || item.VoidEmpID || '';
+        const voidReason = item.voidReason || item.voidreason || item.VoidReason || '';
+        const voidName = item.voidName || item.voidname || item.VoidName || '';
+        const voidEmpID = item.voidEmpID || item.voidempid || item.VoidEmpID || '';
         if (voidReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>🗑️【作廢軌跡】</strong> (👤 ${voidName} - ${voidEmpID})<br><span class="text-danger">${voidReason}</span></div>`;
         if (item.reportReason) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>⚠️【異常通報】</strong><br>狀態：<span class="badge bg-warning text-dark">${item.reportStatus}</span><br><span class="text-dark">${item.reportReason}</span></div>`;
         if (item.managerResult) detailHtml += `<div class="mb-1"><strong>🛡️【主管批示】</strong><br><span class="text-success fw-bold">${item.managerResult}</span></div>`;
