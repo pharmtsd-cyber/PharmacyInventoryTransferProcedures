@@ -87,13 +87,38 @@ function toggleCtrlRetMode() {
     }
 }
 
+// ==========================================
+// ✨ 補齊退藥分頁的智慧游標與模式切換連動
+// ==========================================
 function focusCorrectCtrlRetInput() {
+    // 1. 若為公用機台且無操作藥師，強制對焦藥師搜尋框
+    if (window.workMode === 'public' && (!window.ctrlRetCurrentOperator || !window.ctrlRetCurrentOperator.empId)) {
+        const opInput = document.getElementById('ctrlRetOperatorSearchInput');
+        if(opInput) opInput.focus();
+        return;
+    }
+
+    // 2. 否則依據目前的作業模式(條碼/手動)給予對應的游標
     if (document.getElementById('ctrlRetModeBarcode').checked) {
-        document.getElementById('ctrlRetBarcodeInput').focus();
+        const barcodeInput = document.getElementById('ctrlRetBarcodeInput');
+        if (barcodeInput) barcodeInput.focus();
     } else {
-        document.getElementById('ctrlRetDrugSearchInput').focus();
+        const searchInput = document.getElementById('ctrlRetDrugSearchInput');
+        if (searchInput) searchInput.focus();
     }
 }
+
+// ✨ 處理畫面右上角模式切換時的 UI 變動 (對齊其他兩頁)
+window.applyCtrlRetWorkModeChange = function() {
+    if (window.workMode === 'public') {
+        setCtrlRetOperator('', '');
+        const opInput = document.getElementById('ctrlRetOperatorSearchInput');
+        if(opInput) opInput.focus();
+    } else {
+        if(window.currentUser) setCtrlRetOperator(window.currentUser.empId, window.currentUser.name);
+        focusCorrectCtrlRetInput();
+    }
+};
 
 function resetCtrlRetBarcodeUI() {
     tempRetBarcodeData = null;
