@@ -304,10 +304,11 @@ async function handleCtrlRetManualQtyEnter(e) {
         const qty = parseInt(this.value, 10);
         if(isNaN(qty) || qty <= 0) { alert("請輸入正確退藥數量"); return; }
 
-        const pDate = document.getElementById('ctrlRetManualPrescribeDate').value || "無";
-        const pPatient = document.getElementById('ctrlRetManualPatientNo').value.trim() || "手動無病歷號";
-        const pPresNo = document.getElementById('ctrlRetManualPrescribeNo').value.trim() || "手動無領藥號";
-        const pRetNo = document.getElementById('ctrlRetManualReturnNo').value.trim();
+        // ✨ 移除預設的字串，保留真實的空白，以便後續進行防呆驗證
+        const pDate = document.getElementById('ctrlRetManualPrescribeDate') ? document.getElementById('ctrlRetManualPrescribeDate').value : "";
+        const pPatient = document.getElementById('ctrlRetManualPatientNo') ? document.getElementById('ctrlRetManualPatientNo').value.trim() : "";
+        const pPresNo = document.getElementById('ctrlRetManualPrescribeNo') ? document.getElementById('ctrlRetManualPrescribeNo').value.trim() : "";
+        const pRetNo = document.getElementById('ctrlRetManualReturnNo') ? document.getElementById('ctrlRetManualReturnNo').value.trim() : "";
 
         const success = await processCtrlRetEntry({
             mode: "手動", raw: "手動退藥輸入", 
@@ -321,7 +322,11 @@ async function handleCtrlRetManualQtyEnter(e) {
         if(success) {
             document.getElementById('ctrlRetManualQtySection').classList.add('hidden');
             tempRetManualDrug = null;
-            document.getElementById('ctrlRetManualReturnNo').value = '';
+            // 清空手動輸入框的內容
+            if (document.getElementById('ctrlRetManualReturnNo')) document.getElementById('ctrlRetManualReturnNo').value = '';
+            if (document.getElementById('ctrlRetManualPatientNo')) document.getElementById('ctrlRetManualPatientNo').value = '';
+            if (document.getElementById('ctrlRetManualPrescribeNo')) document.getElementById('ctrlRetManualPrescribeNo').value = '';
+            if (document.getElementById('ctrlRetManualPrescribeDate')) document.getElementById('ctrlRetManualPrescribeDate').value = '';
             document.getElementById('ctrlRetDrugSearchInput').focus();
         }
     }
@@ -354,23 +359,46 @@ async function processCtrlRetEntry(data) {
         alert("無法辨識退藥藥師身分，請重新設定！"); return false;
     }
 
-    const remarkValue = document.getElementById('ctrlRetRemarkInput').value.trim();
-    
-    // ✨ 動態抓取系統參數中「退藥」的正負號設定 (比照調劑分頁)
-    let sign = 1; // 預設為正1
-    if (window.sysParamsDB) {
-        const retParam = window.sysParamsDB.find(p => 
-            p.title === '管藥作業項目' && 
-            p.itemName === '退藥' && 
-            (p.station === window.currentUser.station || p.station === '全院通用')
-        );
-        if (retParam) {
-            sign = parseInt(retParam.itemValue, 10) || 1;
+    // ==========================================
+    // ✨ 新增：住院藥局專屬防呆與必填驗證邏輯
+    // ==========================================
+    const isIPD = window.currentUser && window.currentUser.station === '住院藥局';
+    const remarkValue = document.getElementById('ctrlRetRemarkInput') ? document.getElementById('ctrlRetRemarkInput').value.trim() : '';
+    const hasRemark = remarkValue.length > 0;
+    const returnNoValue = data.returnNo || "";
+
+    // 防呆 1：住院藥局退藥，【退藥單號】絕對必填 (不論條碼或手動)
+    if (isIPD && !returnNoValue.trim()) {
+        alert("⚠️ 住院藥局退藥，【退藥單號】為必填項目！");
+        // 阻擋送出，並將游標自動指回退藥單號輸入框
+        if (data.mode === '條碼' && document.getElementById('ctrlRetBarcodeReturnNo')) {
+            document.getElementById('ctrlRetBarcodeReturnNo').focus();
+        } else if (data.mode === '手動' && document.getElementById('ctrlRetManualReturnNo')) {
+            document.getElementById('ctrlRetManualReturnNo').focus();
         }
+        return false; 
     }
 
-    // 將使用者確認的數量乘上系統參數的符號
-    const finalQty = data.quantity * sign; 
+    // 防呆 2：住院藥局【手動退藥】的病歷號/領藥號必填邏輯
+    if (isIPD && data.mode === '手動') {
+        if (hasRemark) {
+            // 放行：有備註(例如勾選了無原藥袋)，則免填病歷號與領藥號
+            // 為了避免拋轉資料庫時報錯，幫忙塞入防呆字串
+            if (!data.patientNo) data.patientNo = "無原藥袋";
+            if (!data.prescribeNo) data.prescribeNo = "無原藥袋";
+            if (!data.prescribeDate) data.prescribeDate = "無";
+        } else {
+            // 沒勾選無原藥袋也沒寫備註，強制要求填寫
+            if (!data.patientNo || !data.prescribeNo) {
+                alert("⚠️ 缺少原病歷號或領藥號！\n若無原藥袋，請勾選下方「無原藥袋」或於備註說明填寫原因。");
+                return false; // 阻擋送出
+            }
+        }
+    }
+    // ==========================================
+
+    // 退藥一律為負數庫存扣帳
+    const finalQty = data.quantity * -1; 
 
     const payload = {
         action: "createCtrl",
@@ -379,13 +407,13 @@ async function processCtrlRetEntry(data) {
         drugCode: data.drugCode,
         drugName: data.drugName,
         sap: data.sapCode,
-        quantity: finalQty, // ✨ 寫入動態計算過後的數量
+        quantity: finalQty, // ✨ 負數退庫
         actionType: "退藥", // ✨ 強制作業屬性
         mode: data.mode,
         raw: data.raw,
-        patientNo: data.patientNo,
-        prescribeNo: data.prescribeNo,
-        prescribeDate: data.prescribeDate,
+        patientNo: data.patientNo || "未知",
+        prescribeNo: data.prescribeNo || "未知",
+        prescribeDate: data.prescribeDate || "無",
         returnNo: data.returnNo || "",
         operatorId: window.ctrlRetCurrentOperator.empId,
         operatorName: window.ctrlRetCurrentOperator.name,
@@ -403,7 +431,11 @@ async function processCtrlRetEntry(data) {
     // 更新本地暫存與共用的大表UI
     if(typeof window.saveCtrlListToLocal === 'function') window.saveCtrlListToLocal();
     if(typeof window.updateCtrlListUI === 'function') window.updateCtrlListUI();
-    document.getElementById('ctrlRetRemarkInput').value = '';
+    
+    // 送出後清空備註與勾選框
+    if(document.getElementById('ctrlRetRemarkInput')) document.getElementById('ctrlRetRemarkInput').value = '';
+    const noBagCheck = document.getElementById('ctrlRetNoBagCheck');
+    if(noBagCheck) noBagCheck.checked = false;
 
     const overlay = document.getElementById('ctrlRetLoadingOverlay');
     if (overlay) overlay.classList.remove('hidden');
