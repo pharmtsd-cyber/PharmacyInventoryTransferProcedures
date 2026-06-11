@@ -121,9 +121,58 @@ window.fetchTransHistoryFromDB = async function() {
 };
 
 // ==========================================
-// ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染 (已修復狀態還原 Bug)
+// ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染
 // ==========================================
-let html = '';
+window.renderTransHistoryTableUI = function() {
+    const tbody = document.getElementById('transHistTableBody');
+    if (!tbody) return;
+
+    const startDate = document.getElementById('transHistStartDate').value;
+    const endDate = document.getElementById('transHistEndDate').value;
+    const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
+    const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
+    const statusSelect = document.getElementById('transHistStatusSelect').value;
+
+    const filterOutDept = document.getElementById('transHistOutDept').value;
+    const filterInDept = document.getElementById('transHistInDept').value;
+
+    const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
+    const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
+
+    const filtered = window.transApiDataCache.filter(item => {
+        if (filterOutDept !== '全部' && item.outDept !== filterOutDept) return false;
+        if (filterInDept !== '全部' && item.inDept !== filterInDept) return false;
+        
+        let itemTimeMs = 0;
+        if (item.timestamp) itemTimeMs = new Date(item.timestamp).getTime();
+        if (itemTimeMs > 0 && (itemTimeMs < startTimestamp || itemTimeMs > endTimestamp)) return false;
+        
+        if (drugSearch) {
+            const code = (item.drugCode || "").toUpperCase();
+            const name = (item.drugName || "").toUpperCase();
+            if (!code.includes(drugSearch) && !name.includes(drugSearch)) return false;
+        }
+        if (opSearch) {
+            const uid = (item.operatorId || "").toUpperCase();
+            const uname = (item.operatorName || "").toUpperCase();
+            if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
+        }
+        
+        const currentStatus = item.recordStatus || item.RecordStatus || "正常";
+        if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
+        
+        return true;
+    });
+
+    // 排序：從新到舊
+    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-muted py-4">🔍 在此篩選區間內，查無任何符合條件的紀錄</td></tr>`;
+        return;
+    }
+
+    let html = '';
     // ✨ 取得當前登入者單位，用來判斷角色
     const myStation = window.currentUser ? window.currentUser.station : '';
 
@@ -208,4 +257,4 @@ let html = '';
             </tr>`;
     });
     tbody.innerHTML = html;
-};
+}; // ✨ 確保最後這裡有補上 };
