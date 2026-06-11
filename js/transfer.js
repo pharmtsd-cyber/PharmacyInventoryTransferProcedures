@@ -453,7 +453,7 @@ async function handleManualQtyEnter(e) {
 }
 
 // ==========================================
-// 7. ✨ 右側清單渲染 (加入智慧單位流向顯示與動態變色及正負號)
+// 7. ✨ 右側清單渲染 (統一正整數，完全跟隨「撥入單位」主題色)
 // ==========================================
 function updateTransferListUI() {
     const listDiv = document.getElementById('transferRecentList') || document.getElementById('recentList');
@@ -479,38 +479,21 @@ function updateTransferListUI() {
         const isVoided = item.recordStatus === '已作廢' || item.recordStatus === '已作废';
         const statusText = isVoided ? ' (已作廢)' : '';
         
-        // ✨ 智慧判斷調撥流向文字與「正負號」
-        const myStation = window.currentUser ? window.currentUser.station : '';
-        const rawQty = Math.abs(parseInt(item.quantity, 10)); // 統一先取絕對值
-        let directionText = '';
-        let qtyDisplay = `${rawQty}`;
-        let isQtyNegative = false;
+        // ✨ 1. 一律顯示正整數，直接顯示明確流向
+        const rawQty = Math.abs(parseInt(item.quantity, 10)); 
+        const directionText = `${item.outDept} ➔ ${item.inDept}`;
 
-        // 依據自己扮演的角色決定正負號
-        if (item.outDept === myStation) {
-            directionText = `撥至 ${item.inDept}`;
-            qtyDisplay = `-${rawQty}`;
-            isQtyNegative = true;
-        } else if (item.inDept === myStation) {
-            directionText = `自 ${item.outDept} 撥入`;
-            qtyDisplay = `+${rawQty}`;
-        } else {
-            directionText = `${item.outDept} ➔ ${item.inDept}`;
-        }
-
-        // 動態判定主題色 (依據撥入單位)
+        // ✨ 2. 動態判定主題色 (絕對依據「撥入單位」)
         let themeColorClass = 'primary'; // 預設門診 (藍)
         if (item.inDept.includes('急診')) themeColorClass = 'danger'; // 紅
         else if (item.inDept.includes('住院')) themeColorClass = 'success'; // 綠
         else if (item.inDept.includes('調配')) themeColorClass = 'brown'; // 棕
         else if (item.inDept.includes('管理組') || item.inDept.includes('藥庫')) themeColorClass = 'secondary'; // 灰
 
-        // 依據是否作廢，決定最終套用的 CSS Class
+        // ✨ 3. 依據主題色，渲染卡片左側線條、Badge與數量的顏色
         const cardStyle = isVoided ? 'border-secondary bg-light opacity-75' : `border-${themeColorClass}`;
         const badgeColor = isVoided ? 'bg-secondary' : `bg-${themeColorClass}`;
-        
-        // ✨ 數量的顏色改為：作廢灰 / 扣帳紅 / 入帳綠，視覺更直覺
-        const qtyClass = isVoided ? 'text-secondary' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
+        const qtyClass = isVoided ? 'text-secondary' : `text-${themeColorClass} fw-bold`;
 
         html += `
             <div class="card mb-2 p-3 shadow-sm border-0 border-start border-4 ${cardStyle}" id="transfer-card-${item.id}">
@@ -528,7 +511,7 @@ function updateTransferListUI() {
                 <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-light">
                     <span class="text-muted" style="font-size:0.75rem;">👤 經辦: ${item.operatorName}</span>
                     <div class="col-6 text-end d-flex align-items-center justify-content-end">
-                        <strong class="fs-5 ${qtyClass} me-2">${qtyDisplay}</strong>
+                        <strong class="fs-5 ${qtyClass} me-2">${rawQty}</strong>
                         <div class="btn-group">
                             <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.7rem;" onclick="window.editTransferItem('${item.id}', ${rawQty})" ${isVoided ? 'disabled' : ''}>✏️</button>
                             ${isVoided 
