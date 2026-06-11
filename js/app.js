@@ -37,14 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('workModeLabel').innerText = e.target.checked ? '🌍 公用機台模式' : '🔒 個人鎖定模式';
             
             // 通知各模組因應模式改變游標與狀態
-            if(typeof window.applyTransWorkModeChange === 'function') {
-                window.applyTransWorkModeChange(); // 通知調撥模組
-            }
-            if(typeof window.applyCtrlWorkModeChange === 'function') {
-                window.applyCtrlWorkModeChange();  // 通知管藥模組
-            }
+            if(typeof window.applyTransWorkModeChange === 'function') window.applyTransWorkModeChange(); 
+            if(typeof window.applyCtrlWorkModeChange === 'function') window.applyCtrlWorkModeChange();  
+            // ✨ 新增通知退藥模組
+            if(typeof window.applyCtrlRetWorkModeChange === 'function') window.applyCtrlRetWorkModeChange(); 
         });
-    }    
+    }
     
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
@@ -195,7 +193,7 @@ function handleLogin() {
 }
 
 // ==========================================
-// 4. 分頁與介面切換
+// 4. 分頁與介面切換 (含智慧游標預設)
 // ==========================================
 function enterSystem(tabName) {
     document.getElementById('hubSection').classList.add('hidden');
@@ -208,7 +206,6 @@ function switchTab(tabName) {
     const activeTab = document.querySelector(`.academic-tabs .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    // ✨ 這裡補上了 'ctrl-return'，這樣切換分頁時舊的才會正確隱藏
     ['transfer', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
@@ -216,6 +213,35 @@ function switchTab(tabName) {
     
     const targetContent = document.getElementById(`content-${tabName}`);
     if (targetContent) targetContent.classList.remove('hidden');
+
+    // ✨ 新增：智慧切換與游標預設引擎
+    // 給予 DOM 50 毫秒的渲染時間，確保 focus() 絕對會被觸發
+    setTimeout(() => {
+        if (tabName === 'transfer') {
+            const modeBarcode = document.getElementById('modeBarcode');
+            if (modeBarcode) modeBarcode.checked = true;
+            if (typeof toggleInputMode === 'function') toggleInputMode(); // 強制回歸條碼介面
+            
+            if (window.workMode === 'public' && typeof setOperator === 'function') setOperator('', '');
+            if (typeof focusCorrectInput === 'function') focusCorrectInput();
+            
+        } else if (tabName === 'ctrl-drug') {
+            const ctrlModeBarcode = document.getElementById('ctrlModeBarcode');
+            if (ctrlModeBarcode) ctrlModeBarcode.checked = true;
+            if (typeof toggleCtrlInputMode === 'function') toggleCtrlInputMode();
+            
+            if (window.workMode === 'public' && typeof setCtrlOperator === 'function') setCtrlOperator('', '');
+            if (typeof focusCorrectCtrlInput === 'function') focusCorrectCtrlInput();
+            
+        } else if (tabName === 'ctrl-return') {
+            const ctrlRetModeBarcode = document.getElementById('ctrlRetModeBarcode');
+            if (ctrlRetModeBarcode) ctrlRetModeBarcode.checked = true;
+            if (typeof toggleCtrlRetMode === 'function') toggleCtrlRetMode();
+            
+            if (window.workMode === 'public' && typeof setCtrlRetOperator === 'function') setCtrlRetOperator('', '');
+            if (typeof focusCorrectCtrlRetInput === 'function') focusCorrectCtrlRetInput();
+        }
+    }, 50);
 }
 
 function backToHub() {
