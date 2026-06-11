@@ -55,6 +55,52 @@ document.addEventListener('DOMContentLoaded', () => {
             if (list) list.innerHTML = '';
         }
     });
+    // ==========================================
+    // ✨ 住院藥局專屬：動態插入「無原藥袋」勾選框與 Enter 跳轉
+    // ==========================================
+    const remarkInput = document.getElementById('ctrlRetRemarkInput');
+    if (remarkInput && remarkInput.parentElement) {
+        const checkWrapper = document.createElement('div');
+        checkWrapper.className = 'form-check mt-2 mb-1';
+        checkWrapper.innerHTML = `
+            <input class="form-check-input border-danger" type="checkbox" id="ctrlRetNoBagCheck">
+            <label class="form-check-label text-danger fw-bold" for="ctrlRetNoBagCheck">
+                🚫 無原藥袋 (勾選後自動填寫備註，且病歷號/領藥號轉為非必填)
+            </label>
+        `;
+        // 將勾選框插在備註欄位的正下方/旁邊
+        remarkInput.parentElement.appendChild(checkWrapper);
+
+        // 監聽勾選動作：自動加上或移除「無原藥袋」字眼
+        document.getElementById('ctrlRetNoBagCheck').addEventListener('change', function() {
+            if (this.checked) {
+                remarkInput.value = remarkInput.value ? remarkInput.value + " 無原藥袋" : "無原藥袋";
+            } else {
+                remarkInput.value = remarkInput.value.replace("無原藥袋", "").trim();
+            }
+        });
+    }
+
+    // ✨ 退藥單號 Enter 鍵跳轉至「數量」欄位
+    const returnNoInput = document.getElementById('ctrlRetReturnNoInput') || document.getElementById('ctrlRetReturnNo');
+    if (returnNoInput) {
+        returnNoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const barcodeQty = document.getElementById('ctrlRetBarcodeQty');
+                const manualQty = document.getElementById('ctrlRetManualQtyInput');
+                
+                // 智慧判斷目前在哪個模式，就把游標跳去對應的數量框
+                if (barcodeQty && barcodeQty.offsetParent !== null) {
+                    barcodeQty.focus();
+                    barcodeQty.select();
+                } else if (manualQty && manualQty.offsetParent !== null) {
+                    manualQty.focus();
+                    manualQty.select();
+                }
+            }
+        });
+    }
 });
 
 window.initCtrlReturnSection = function() {
