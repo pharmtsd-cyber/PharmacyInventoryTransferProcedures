@@ -130,8 +130,8 @@ async function handleCtrlRetBarcodeScan(e) {
                 if (!isNaN(dStr)) parsedDate = `${dStr.substring(0,4)}-${dStr.substring(4,6)}-${dStr.substring(6,8)}`;
             }
             
-            // 抓取原本調劑的數量作為預設值
-            const originalQty = parseInt(parts[3], 10) || 0;
+            // ✨ 加上 Math.abs，確保即使條碼帶有負號，畫面預設也會顯示正數的絕對值
+            const originalQty = Math.abs(parseInt(parts[3], 10) || 0);
 
             // 暫存解析結果
             tempRetBarcodeData = {
