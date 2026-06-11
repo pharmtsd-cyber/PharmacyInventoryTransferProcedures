@@ -158,10 +158,12 @@ window.renderTransHistoryTableUI = function() {
         if (item.timestamp) itemTimeMs = new Date(item.timestamp).getTime();
         if (itemTimeMs > 0 && (itemTimeMs < startTimestamp || itemTimeMs > endTimestamp)) return false;
         
+        // ✨ 已支援用 SAP 碼做模糊搜尋
         if (drugSearch) {
             const code = (item.drugCode || "").toUpperCase();
             const name = (item.drugName || "").toUpperCase();
-            if (!code.includes(drugSearch) && !name.includes(drugSearch)) return false;
+            const sap = (item.sap || "").toUpperCase();
+            if (!code.includes(drugSearch) && !name.includes(drugSearch) && !sap.includes(drugSearch)) return false;
         }
         if (opSearch) {
             const uid = (item.operatorId || "").toUpperCase();
@@ -184,33 +186,30 @@ window.renderTransHistoryTableUI = function() {
     }
 
     let html = '';
-    // ✨ 取得當前登入者單位，用來判斷角色
-    const myStation = window.currentUser ? window.currentUser.station : '';
 
     filtered.forEach(item => {
         const currentStatus = item.recordStatus || item.RecordStatus || "正常";
         const isVoided = (currentStatus === '已作废' || currentStatus === '已作廢');
         
-        // ✨ 動態判斷正負號：依據我的單位是撥出還是撥入
-        const rawQty = Math.abs(parseInt(item.quantity, 10)); // 統一取絕對值
-        let isQtyNegative = false;
-        let qtyDisplay = `${rawQty}`;
+        // ✨ 1. 取絕對值，一律為正數
+        const rawQty = Math.abs(parseInt(item.quantity, 10)); 
 
-        if (item.outDept === myStation) {
-            isQtyNegative = true;
-            qtyDisplay = `-${rawQty}`; // 我是撥出方，顯示扣帳負數
-        } else if (item.inDept === myStation) {
-            isQtyNegative = false;
-            qtyDisplay = `+${rawQty}`; // 我是撥入方，顯示入帳正數
-        } else {
-            // 若我是第三方（例如查看別人互調的紀錄），則直接判斷系統原始的狀態
-            isQtyNegative = item.quantity < 0; 
-            qtyDisplay = isQtyNegative ? `-${rawQty}` : `+${rawQty}`; 
-        }
+        // ✨ 2. 動態判定主題色 (絕對依據「撥入單位」)
+        let themeColorClass = 'primary'; // 預設門診 (藍)
+        if (item.inDept.includes('急診')) themeColorClass = 'danger'; // 紅
+        else if (item.inDept.includes('住院')) themeColorClass = 'success'; // 綠
+        else if (item.inDept.includes('調配')) themeColorClass = 'brown'; // 棕
+        else if (item.inDept.includes('管理組') || item.inDept.includes('藥庫')) themeColorClass = 'secondary'; // 灰
         
-        // 賦予直覺的顏色（作廢灰 / 扣除紅 / 增加綠）
-        const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
+        // 賦予直覺的顏色
+        const qtyClass = isVoided ? 'text-muted' : `text-${themeColorClass} fw-bold`;
+        const flowBadgeClass = isVoided ? 'bg-secondary' : `bg-${themeColorClass}`;
         const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-primary">正常</span>';
+        
+        // ✨ 3. 作業項目(條碼/手動) 顏色區分
+        const mode = item.mode || '未知';
+        let modeBadgeClass = 'bg-info text-dark'; // 預設條碼用淺藍底
+        if (mode === '手動') modeBadgeClass = 'bg-warning text-dark'; // 手動用黃底
         
         const isReported = item.reportStatus === '未處理' || item.reportStatus === '處理中';
         const isResolved = item.reportStatus === '已結案';
@@ -233,18 +232,27 @@ window.renderTransHistoryTableUI = function() {
         const dispDate = item.timestamp ? item.timestamp.split('T')[0] : '';
         const dispTime = item.timestamp && item.timestamp.includes('T') ? item.timestamp.split('T')[1].substring(0,8) : '';
 
+        // ✨ 4. 處理 SAP 顯示 (SAP 為主，院內碼為輔)
+        const sapDisplay = item.sap && item.sap !== '未知' ? item.sap : '無SAP碼';
+
         html += `
             <tr class="${rowStyle}">
                 <td style="font-size: 0.8rem;" class="text-start font-monospace">
                     <div>${dispDate}</div>
                     <div class="text-secondary">${dispTime}</div>
                 </td>
-                <td><span class="badge ${isVoided ? 'bg-secondary' : 'bg-primary'}">${item.actionType || '調撥'}</span><br><small class="text-muted" style="font-size: 0.7rem;">${item.outDept} ➔ ${item.inDept}</small></td>
-                <td class="font-monospace text-start fw-bold fs-6">${item.drugCode || ''}</td>
+                <td>
+                    <span class="badge ${modeBadgeClass} mb-1 shadow-sm">${mode}</span><br>
+                    <span class="badge ${flowBadgeClass} text-white shadow-sm" style="font-size: 0.75rem;">${item.outDept} ➔ ${item.inDept}</span>
+                </td>
+                <td class="font-monospace text-start">
+                    <div class="fw-bold fs-6 text-dark">${sapDisplay}</div>
+                    <div class="text-secondary small">院內碼: ${item.drugCode || ''}</div>
+                </td>
                 <td class="text-start">
                     <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || ''}</div>
                 </td>
-                <td><span class="${qtyClass} fs-5">${qtyDisplay}</span></td>
+                <td><span class="${qtyClass} fs-5">${rawQty}</span></td>
                 <td>
                     <div class="fw-bold">${item.operatorName || ''}</div>
                     <small class="text-muted font-monospace">${item.operatorId || ''}</small>
@@ -268,4 +276,4 @@ window.renderTransHistoryTableUI = function() {
             </tr>`;
     });
     tbody.innerHTML = html;
-}; // ✨ 確保最後這裡有補上 };
+};
