@@ -150,6 +150,11 @@ window.initOperatorAndDept = function() {
     
     // 初始化時先檢查一次狀態
     window.updateDeptUIStatus();
+
+    // ✨ 修正 1：登入確認身分後，立刻強制重新渲染一次右側清單，確保正負號正確顯示
+    if (typeof updateTransferListUI === 'function') {
+        updateTransferListUI();
+    }
 };
 
 function setOperator(id, name) {
