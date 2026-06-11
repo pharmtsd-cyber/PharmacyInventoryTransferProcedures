@@ -13,8 +13,19 @@ document.addEventListener('DOMContentLoaded', () => {
         transHistTab.addEventListener('click', () => {
             const inDept = document.getElementById('transHistInDept');
             const outDept = document.getElementById('transHistOutDept');
-            if (inDept && window.currentUser && window.currentUser.station) inDept.value = window.currentUser.station;
-            if (outDept) outDept.value = '藥品管理組';
+            
+            // ✨ 修正 2：依據登入者的單位，智慧給予大表的預設篩選條件
+            if (window.currentUser && window.currentUser.station) {
+                if (window.currentUser.station === '藥品管理組') {
+                    // 如果是藥品管理組，看全部的撥入
+                    if (inDept) inDept.value = '全部';
+                    if (outDept) outDept.value = '藥品管理組';
+                } else {
+                    // 其他單位，看自己被撥入的
+                    if (inDept) inDept.value = window.currentUser.station;
+                    if (outDept) outDept.value = '藥品管理組';
+                }
+            }
             
             window.fetchTransHistoryFromDB(); // ⚡ 連線抓資料
         });
