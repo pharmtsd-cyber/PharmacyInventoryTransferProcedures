@@ -123,65 +123,32 @@ window.fetchTransHistoryFromDB = async function() {
 // ==========================================
 // ⚡ 核心 2：將抓回來的資料進行畫面過濾與渲染 (已修復狀態還原 Bug)
 // ==========================================
-window.renderTransHistoryTableUI = function() {
-    const tbody = document.getElementById('transHistTableBody');
-    if (!tbody) return;
+let html = '';
+    // ✨ 取得當前登入者單位，用來判斷角色
+    const myStation = window.currentUser ? window.currentUser.station : '';
 
-    const startDate = document.getElementById('transHistStartDate').value;
-    const endDate = document.getElementById('transHistEndDate').value;
-    const drugSearch = document.getElementById('transHistDrugSearch').value.toUpperCase().trim();
-    const opSearch = document.getElementById('transHistOpSearch').value.toUpperCase().trim();
-    const statusSelect = document.getElementById('transHistStatusSelect').value;
-
-    const filterOutDept = document.getElementById('transHistOutDept').value;
-    const filterInDept = document.getElementById('transHistInDept').value;
-
-    const startTimestamp = startDate ? new Date(startDate + "T00:00:00").getTime() : 0;
-    const endTimestamp = endDate ? new Date(endDate + "T23:59:59").getTime() : Infinity;
-
-    const filtered = window.transApiDataCache.filter(item => {
-        if (filterOutDept !== '全部' && item.outDept !== filterOutDept) return false;
-        if (filterInDept !== '全部' && item.inDept !== filterInDept) return false;
-        
-        let itemTimeMs = 0;
-        if (item.timestamp) itemTimeMs = new Date(item.timestamp).getTime();
-        if (itemTimeMs > 0 && (itemTimeMs < startTimestamp || itemTimeMs > endTimestamp)) return false;
-        
-        if (drugSearch) {
-            const code = (item.drugCode || "").toUpperCase();
-            const name = (item.drugName || "").toUpperCase();
-            if (!code.includes(drugSearch) && !name.includes(drugSearch)) return false;
-        }
-        if (opSearch) {
-            const uid = (item.operatorId || "").toUpperCase();
-            const uname = (item.operatorName || "").toUpperCase();
-            if (!uid.includes(opSearch) && !uname.includes(opSearch)) return false;
-        }
-        
-        // ✨ 修正 1：不再依賴 voidReason，直接吃後端傳來的 recordStatus
-        const currentStatus = item.recordStatus || item.RecordStatus || "正常";
-        if (statusSelect !== '全部' && currentStatus !== statusSelect) return false;
-        
-        return true;
-    });
-
-    // 排序：從新到舊
-    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-muted py-4">🔍 在此篩選區間內，查無任何符合條件的紀錄</td></tr>`;
-        return;
-    }
-
-    let html = '';
     filtered.forEach(item => {
-        // ✨ 修正 2：精準判斷是否為作廢，決定是否要上灰色與刪除線
         const currentStatus = item.recordStatus || item.RecordStatus || "正常";
         const isVoided = (currentStatus === '已作废' || currentStatus === '已作廢');
         
-        const isQtyNegative = item.quantity < 0;
-        const qtyDisplay = isQtyNegative ? `${item.quantity}` : `+${item.quantity}`;
+        // ✨ 動態判斷正負號：依據我的單位是撥出還是撥入
+        const rawQty = Math.abs(parseInt(item.quantity, 10)); // 統一取絕對值
+        let isQtyNegative = false;
+        let qtyDisplay = `${rawQty}`;
+
+        if (item.outDept === myStation) {
+            isQtyNegative = true;
+            qtyDisplay = `-${rawQty}`; // 我是撥出方，顯示扣帳負數
+        } else if (item.inDept === myStation) {
+            isQtyNegative = false;
+            qtyDisplay = `+${rawQty}`; // 我是撥入方，顯示入帳正數
+        } else {
+            // 若我是第三方（例如查看別人互調的紀錄），則直接判斷系統原始的狀態
+            isQtyNegative = item.quantity < 0; 
+            qtyDisplay = isQtyNegative ? `-${rawQty}` : `+${rawQty}`; 
+        }
         
+        // 賦予直覺的顏色（作廢灰 / 扣除紅 / 增加綠）
         const qtyClass = isVoided ? 'text-muted' : (isQtyNegative ? 'text-danger fw-bold' : 'text-success fw-bold');
         const statusBadge = isVoided ? '<span class="badge bg-secondary">已作廢</span>' : '<span class="badge bg-primary">正常</span>';
         
@@ -212,7 +179,7 @@ window.renderTransHistoryTableUI = function() {
                     <div>${dispDate}</div>
                     <div class="text-secondary">${dispTime}</div>
                 </td>
-                <td><span class="badge ${isVoided ? 'bg-secondary' : 'bg-primary'}">${item.actionType || '調出'}</span></td>
+                <td><span class="badge ${isVoided ? 'bg-secondary' : 'bg-primary'}">${item.actionType || '調撥'}</span><br><small class="text-muted" style="font-size: 0.7rem;">${item.outDept} ➔ ${item.inDept}</small></td>
                 <td class="font-monospace text-start fw-bold fs-6">${item.drugCode || ''}</td>
                 <td class="text-start">
                     <div class="${isVoided ? 'text-decoration-line-through text-muted' : 'fw-bold text-dark'}" style="font-size:0.85rem;">${item.drugName || ''}</div>
@@ -229,7 +196,7 @@ window.renderTransHistoryTableUI = function() {
                 <td>
                     <div class="d-flex flex-column gap-1 align-items-center">
                         <div class="btn-group btn-group-sm w-100">
-                            <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editTransferItem('${item.id}', ${item.quantity})" ${isVoided ? 'disabled' : ''}>✏️</button>
+                            <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editTransferItem('${item.id}', ${rawQty})" ${isVoided ? 'disabled' : ''}>✏️</button>
                             ${isVoided 
                                 ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreTransferItem('${item.id}')">♻️</button>`
                                 : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidTransferItem('${item.id}')">🗑️</button>`
