@@ -219,10 +219,19 @@ async function handleCtrlRetBarcodeScan(e) {
             document.getElementById('ctrlRetParsedDate').innerText = tempRetBarcodeData.prescribeDate;
             
             document.getElementById('ctrlRetBarcodeQty').value = originalQty;
-
             document.getElementById('ctrlRetBarcodeConfirmSection').classList.remove('hidden');
-            document.getElementById('ctrlRetBarcodeQty').focus(); // 自動跳到數量欄位等待確認
-            document.getElementById('ctrlRetBarcodeQty').select();
+
+            // ✨ 智慧判定：住院藥局游標先到退藥單號，其他單位直達數量
+            const isIPD = window.currentUser && window.currentUser.station === '住院藥局';
+            const returnNoInput = document.getElementById('ctrlRetReturnNoInput') || document.getElementById('ctrlRetReturnNo');
+            
+            if (isIPD && returnNoInput) {
+                returnNoInput.focus();
+            } else {
+                document.getElementById('ctrlRetBarcodeQty').focus(); 
+                document.getElementById('ctrlRetBarcodeQty').select();
+            }
+            // 🗑️ 此處原本多出的 document.getElementById('ctrlRetBarcodeQty').select(); 已經移除
 
         } else { alert("❌ 管藥條碼格式錯誤！"); }
         this.value = ''; 
