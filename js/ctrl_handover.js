@@ -17,6 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const todayIso = new Date().toISOString().split('T')[0];
     if (document.getElementById('handoverHistDate')) document.getElementById('handoverHistDate').value = todayIso;
 
+    const handoverEmpInput = document.getElementById('handoverEmpOutput');
+    if (handoverEmpInput) {
+        handoverEmpInput.removeAttribute('readonly');
+        handoverEmpInput.placeholder = "請輸入交班人員編或姓名...";
+        handoverEmpInput.classList.remove('bg-white'); 
+    }
+
     document.querySelectorAll('#mainTabs .nav-link[data-tab^="ctrl-handover"]').forEach(tab => {
         tab.addEventListener('click', () => {
             if (typeof window.fetchHandoverHistoryFromDB === 'function') {
@@ -25,12 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ✨ 綁定交班與接班人的模糊搜尋 (Autocomplete)
     bindUserAutocomplete('handoverEmpOutput', 'handover-emp-autocomplete-list');
     bindUserAutocomplete('receiverEmpInput', 'receiver-emp-autocomplete-list');
 });
 
-// ✨ 共用的藥師模糊搜尋綁定函數
 function bindUserAutocomplete(inputId, listId) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -48,14 +53,13 @@ function bindUserAutocomplete(inputId, listId) {
             item.className = "p-2 border-bottom text-dark bg-white cursor-pointer autocomplete-hover";
             item.style.cursor = "pointer";
             item.addEventListener('click', () => {
-                input.value = `${user.name} (${user.empId})`; // 統一格式
+                input.value = `${user.name} (${user.empId})`; 
                 list.innerHTML = '';
             });
             list.appendChild(item);
         });
     });
 
-    // 點擊空白處關閉選單
     document.addEventListener("click", function (e) {
         if (e.target !== input) {
             const list = document.getElementById(listId);
@@ -135,6 +139,7 @@ window.fetchHandoverHistoryFromDB = async function() {
         checkSystemLockStatus(); 
         renderHandoverHistory();
         autoFillHandoverPersonnel(); 
+        autoSelectNextShift(); // ✨ 自動選取下一個班別
     }
 };
 
@@ -174,17 +179,52 @@ function autoFillHandoverPersonnel() {
     }
 }
 
+// ==========================================
+// ✨ 新增：自動選取今日「下一個」交接班工作
+// ==========================================
+function autoSelectNextShift() {
+    const shiftSelect = document.getElementById('handoverShiftSelect');
+    if (!shiftSelect || !window.handoverShiftConfigs) return;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+
+    // 抓出今天已經完成的排序編號 (陣列)
+    const todayCompletedOrders = window.handoverList
+        .filter(r => r.station === window.currentUser.station && r.checkStatus === '已完成' && r.rawTime >= startOfDay && r.rawTime <= endOfDay)
+        .map(r => parseInt(r.shiftOrder, 10));
+
+    // 找出設定檔中，第一個還沒有被完成的班別
+    const nextShift = window.handoverShiftConfigs.find(s => !todayCompletedOrders.includes(parseInt(s.sortOrder || 999, 10)));
+
+    if (nextShift) {
+        shiftSelect.value = nextShift.itemName;
+    } else {
+        // 全部的交班都做完了，就維持預設或空白
+        shiftSelect.value = ""; 
+    }
+}
+
+// ==========================================
+// ✨ 修正：鎖定狀態判斷改用精準的時間戳 (TimeStamp) 比較
+// ==========================================
 window.checkSystemLockStatus = function() {
     if (!window.handoverShiftConfigs || window.handoverShiftConfigs.length === 0) return;
     
     const minOrder = Math.min(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
     const maxOrder = Math.max(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
-    const todayStr = new Date().toLocaleDateString();
+    
+    // 取得今日 00:00:00 與 23:59:59 的精準時間戳
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
     
     const todayCompleted = window.handoverList.filter(r => 
         r.station === window.currentUser.station && 
         r.checkStatus === '已完成' && 
-        new Date(r.createTime).toLocaleDateString() === todayStr
+        r.rawTime >= startOfDay && 
+        r.rawTime <= endOfDay
     );
     
     const hasFirstShift = todayCompleted.some(r => r.shiftOrder === minOrder);
@@ -230,7 +270,7 @@ async function generateHandoverRecord() {
         receiverName: receiverUser.name,     
         keyTransferred: shiftName.includes('鑰匙') ? 'Y' : 'N',
         createTime: new Date().toLocaleString(),
-        rawTime: Date.now(), // ✨ 儲存原始時間戳供篩選使用
+        rawTime: Date.now(),
         remark: remark,
         checkStatus: "待核對", 
         snapshot: snapshot
@@ -249,14 +289,9 @@ async function generateHandoverRecord() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-    } catch(e) {
-        console.warn("⚠️ API 拋轉失敗，目前紀錄暫存於本地。");
-    }
+    } catch(e) {}
 }
 
-// ==========================================
-// ✨ 渲染交班紀錄 (修復日期篩選 Bug)
-// ==========================================
 function renderHandoverHistory() {
     const tbody = document.getElementById('handoverHistTableBody');
     if (!tbody) return;
@@ -265,17 +300,13 @@ function renderHandoverHistory() {
     const filterStatus = document.getElementById('handoverHistStatus').value;
     const filterOp = document.getElementById('handoverHistOpSearch').value.toUpperCase().trim();
     
-    // ✨ 將選取的日期轉換為該日 00:00:00 與 23:59:59 的時間戳
     const startOfDay = filterDateStr ? new Date(filterDateStr + "T00:00:00").getTime() : 0;
     const endOfDay = filterDateStr ? new Date(filterDateStr + "T23:59:59").getTime() : Infinity;
 
     let html = '';
     window.handoverList.forEach(item => {
         if (item.station !== window.currentUser.station) return;
-        
-        // ✨ 改用 rawTime (時間戳) 來精準判定是否落在當天，無視字串格式
         if (filterDateStr && item.rawTime && (item.rawTime < startOfDay || item.rawTime > endOfDay)) return;
-        
         if (filterStatus !== '全部' && item.checkStatus !== filterStatus) return;
         if (filterOp) {
             const hId = (item.handoverEmpID || "").toUpperCase();
@@ -364,8 +395,7 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
         confirmButtonColor: '#198754',
         cancelButtonColor: '#dc3545',
         confirmButtonText: '✅ 數量無誤，完成交班',
-        cancelButtonText: '🗑️ 數量有誤，作廢此單',
-        closeOnConfirm: false
+        cancelButtonText: '🗑️ 數量有誤，作廢此單'
     }).then((result) => {
         if (result.isConfirmed && !isViewOnly) {
             record.checkStatus = '已完成';
@@ -374,6 +404,7 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
             checkSystemLockStatus(); 
             renderHandoverHistory();
             updateHandoverStatusAPI(record.id, '已完成'); 
+            autoSelectNextShift(); // ✨ 核對完成後，自動更新下拉選單為下一個班別
             
             if(window.ctrlSystemStatus === 'OPEN') Swal.fire('開班完成！', '首班交接已確認，管藥調劑系統已【解鎖】。', 'success');
             else if(window.ctrlSystemStatus === 'LOCKED_POST') Swal.fire('關班結算完成！', '今日帳目已結算，管藥調劑系統已【鎖定】。', 'warning');
