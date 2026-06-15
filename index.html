@@ -82,6 +82,7 @@
                     <hr class="my-2 border-secondary opacity-25">
                     
                     <a class="nav-link text-danger fw-bold shadow-sm border border-danger border-opacity-25" data-tab="ctrl-handover" href="#" style="background-color: #fff5f5;">🔄 管藥交接班作業</a>
+                    <a class="nav-link text-danger" data-tab="ctrl-handover-history" href="#">📜 交接班點交紀錄</a>
                     
                     <a class="nav-link text-danger mt-2" data-tab="ctrl-drug" href="#">💊 1-3級管藥/調劑</a>
                     <a class="nav-link text-danger" data-tab="ctrl-return" href="#">🔙 1-3級管藥/退藥</a>
@@ -313,17 +314,10 @@
                                             <label class="form-label fw-bold text-primary">接班人 (刷條碼或輸入員編)：</label>
                                             <input type="text" class="form-control border-primary mb-3 shadow-sm" id="receiverEmpInput" placeholder="請刷入接班人識別證...">
 
-                                            <div class="form-check mb-4 mt-4 p-3 bg-white border border-danger rounded shadow-sm">
-                                                <input class="form-check-input ms-1" type="checkbox" id="keyTransferredCheck" style="transform: scale(1.5);">
-                                                <label class="form-check-label fw-bold text-danger ms-3 fs-6" for="keyTransferredCheck">
-                                                    🔑 管制藥品金庫鑰匙已確實點交
-                                                </label>
-                                            </div>
-
                                             <label class="form-label fw-bold text-dark">備註說明：</label>
                                             <textarea class="form-control mb-3" id="handoverRemark" rows="2" placeholder="如有數量不符或其他異常，請填寫..."></textarea>
 
-                                            <button class="btn btn-danger btn-lg w-100 fw-bold shadow mt-2" id="confirmHandoverBtn">✅ 確認點交並送出</button>
+                                            <button class="btn btn-danger btn-lg w-100 fw-bold shadow mt-2" id="confirmHandoverBtn">📝 產生點班單並前往核對</button>
                                         </div>
                                     </div>
                                 </div>
@@ -609,6 +603,56 @@
                     </div> 
                 </div>
 
+                <div id="content-ctrl-handover-history" class="hidden">
+                    <div class="card academic-card p-4 bg-white">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h5 class="text-danger fw-bold mb-0">📜 管制藥品交接班點交紀錄</h5>
+                        </div>
+                        
+                        <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
+                            <div class="col-xl-3 col-md-3">
+                                <label class="form-label fw-bold small text-danger">📅 查詢日期</label>
+                                <input type="date" class="form-control form-control-sm border-danger" id="handoverHistDate">
+                            </div>
+                            <div class="col-xl-4 col-md-4 position-relative">
+                                <label class="form-label fw-bold small text-secondary">👤 交班/接班藥師</label>
+                                <input type="text" class="form-control form-control-sm border-secondary" id="handoverHistOpSearch" placeholder="輸入姓名或員編...">
+                            </div>
+                            <div class="col-xl-3 col-md-3">
+                                <label class="form-label fw-bold small text-secondary">⚖️ 狀態</label>
+                                <select class="form-select form-select-sm border-secondary" id="handoverHistStatus">
+                                    <option value="全部">全部</option>
+                                    <option value="待核對">待核對 (點交中)</option>
+                                    <option value="已完成">已完成</option>
+                                    <option value="已作廢">已作廢</option>
+                                </select>
+                            </div>
+                            <div class="col-xl-2 col-md-2">
+                                <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="handoverHistSearchBtn">🔍 篩選紀錄</button>
+                            </div>
+                        </div>
+                
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                                <thead class="table-danger fw-bold sticky-top" style="z-index: 5;">
+                                    <tr>
+                                        <th style="width: 12%;">建立時間</th>
+                                        <th style="width: 15%;">交班班別</th>
+                                        <th style="width: 15%;">交班人</th>
+                                        <th style="width: 15%;">接班人</th>
+                                        <th>備註</th>
+                                        <th style="width: 12%;">狀態</th>
+                                        <th style="width: 15%;">核對結存 / 操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="handoverHistTableBody">
+                                    <tr><td colspan=\"7\" class=\"text-muted py-4\">請點擊篩選按鈕載入紀錄</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="content-ctrl-history" class="hidden">
                     <div class="card academic-card p-4 bg-white">
                         <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
@@ -703,6 +747,7 @@
 <script src="js/ctrl_drug.js"></script>
 <script src="js/ctrl_history.js"></script>
 <script src="js/ctrl_return.js"></script>
+<script src="js/ctrl_handover.js"></script>
 
 </body>
 </html>
