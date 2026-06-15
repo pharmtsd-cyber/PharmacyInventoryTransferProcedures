@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', (e) => enterSystem(e.currentTarget.dataset.target));
     });
     
-    document.querySelectorAll('.academic-tabs .nav-link').forEach(tab => {
+    document.querySelectorAll('#mainTabs .nav-link').forEach(tab => {
         tab.addEventListener('click', (e) => {
             e.preventDefault();
             switchTab(e.currentTarget.dataset.tab);
