@@ -352,8 +352,8 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
             
             checkSystemLockStatus(); 
             renderHandoverHistory();
-            updateHandoverStatusAPI(record.id, '已完成'); 
-            autoSelectNextShift(); // ✨ 核對完成後，自動更新下拉選單為下一個班別
+            updateHandoverActionAPI(record.id, '已完成', '', 'complete');
+            autoSelectNextShift();
             
             if(window.ctrlSystemStatus === 'OPEN') Swal.fire('開班完成！', '首班交接已確認，管藥調劑系統已【解鎖】。', 'success');
             else if(window.ctrlSystemStatus === 'LOCKED_POST') Swal.fire('關班結算完成！', '今日帳目已結算，管藥調劑系統已【鎖定】。', 'warning');
