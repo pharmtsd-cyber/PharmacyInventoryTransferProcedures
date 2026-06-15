@@ -139,7 +139,8 @@ window.fetchHandoverHistoryFromDB = async function() {
         checkSystemLockStatus(); 
         renderHandoverHistory();
         autoFillHandoverPersonnel(); 
-        autoSelectNextShift(); // ✨ 自動選取下一個班別
+        autoSelectNextShift();
+        window.renderCurrentInventory();// ✨ 自動選取下一個班別
     }
 };
 
@@ -190,19 +191,27 @@ function autoSelectNextShift() {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
 
-    // 抓出今天已經完成的排序編號 (陣列)
+    // 找出今天已完成的排序
     const todayCompletedOrders = window.handoverList
         .filter(r => r.station === window.currentUser.station && r.checkStatus === '已完成' && r.rawTime >= startOfDay && r.rawTime <= endOfDay)
         .map(r => parseInt(r.shiftOrder, 10));
 
-    // 找出設定檔中，第一個還沒有被完成的班別
+    // 找出下一個該做的班別
     const nextShift = window.handoverShiftConfigs.find(s => !todayCompletedOrders.includes(parseInt(s.sortOrder || 999, 10)));
 
-    if (nextShift) {
-        shiftSelect.value = nextShift.itemName;
-    } else {
-        // 全部的交班都做完了，就維持預設或空白
-        shiftSelect.value = ""; 
+    // 遍歷所有選項，將非下一個班別的選項全部 Disable (防呆強制)
+    Array.from(shiftSelect.options).forEach(opt => {
+        if (opt.value === "") return; // 保留預設空選項
+        if (nextShift && opt.value === nextShift.itemName) {
+            opt.disabled = false;
+            shiftSelect.value = opt.value;
+        } else {
+            opt.disabled = true; // 鎖死不給選
+        }
+    });
+
+    if (!nextShift) {
+        shiftSelect.value = ""; // 如果全做完了，就清空
     }
 }
 
@@ -292,66 +301,6 @@ async function generateHandoverRecord() {
     } catch(e) {}
 }
 
-function renderHandoverHistory() {
-    const tbody = document.getElementById('handoverHistTableBody');
-    if (!tbody) return;
-
-    const filterDateStr = document.getElementById('handoverHistDate').value;
-    const filterStatus = document.getElementById('handoverHistStatus').value;
-    const filterOp = document.getElementById('handoverHistOpSearch').value.toUpperCase().trim();
-    
-    const startOfDay = filterDateStr ? new Date(filterDateStr + "T00:00:00").getTime() : 0;
-    const endOfDay = filterDateStr ? new Date(filterDateStr + "T23:59:59").getTime() : Infinity;
-
-    let html = '';
-    window.handoverList.forEach(item => {
-        if (item.station !== window.currentUser.station) return;
-        if (filterDateStr && item.rawTime && (item.rawTime < startOfDay || item.rawTime > endOfDay)) return;
-        if (filterStatus !== '全部' && item.checkStatus !== filterStatus) return;
-        if (filterOp) {
-            const hId = (item.handoverEmpID || "").toUpperCase();
-            const hName = (item.handoverName || "").toUpperCase();
-            const rId = (item.receiverEmpID || "").toUpperCase();
-            const rName = (item.receiverName || "").toUpperCase();
-            if (!hId.includes(filterOp) && !hName.includes(filterOp) && !rId.includes(filterOp) && !rName.includes(filterOp)) return;
-        }
-
-        const isPending = item.checkStatus === '待核對';
-        const isVoided = item.checkStatus === '已作廢';
-        
-        let statusBadge = `<span class="badge bg-success">已完成</span>`;
-        if (isPending) statusBadge = `<span class="badge bg-warning text-dark border border-warning shadow-sm">待核對 (點交中)</span>`;
-        if (isVoided) statusBadge = `<span class="badge bg-secondary">已作廢</span>`;
-
-        let actionBtn = '';
-        if (isPending) {
-            actionBtn = `
-                <button class="btn btn-sm btn-primary fw-bold px-3 py-1 shadow-sm" onclick="openHandoverCheckPopup('${item.id}')">🔍 執行核對</button>
-                <button class="btn btn-sm btn-outline-danger px-2 py-1 mt-1" onclick="voidHandover('${item.id}')">🗑️ 數量有誤作廢</button>
-            `;
-        } else {
-            actionBtn = `<button class="btn btn-sm btn-outline-secondary py-1" onclick="openHandoverCheckPopup('${item.id}', true)">📄 查看明細</button>`;
-        }
-
-        html += `
-            <tr class="${isVoided ? 'table-secondary text-muted' : (isPending ? 'table-warning' : '')}">
-                <td class="font-monospace small">
-                    <div>${item.createTime.split(' ')[0]}</div>
-                    <div class="text-secondary">${item.createTime.split(' ')[1] || ''}</div>
-                </td>
-                <td class="fw-bold text-danger">${item.shiftName}</td>
-                <td><div class="fw-bold">${item.handoverName}</div><small class="text-muted">${item.handoverEmpID}</small></td>
-                <td><div class="fw-bold">${item.receiverName}</div><small class="text-muted">${item.receiverEmpID}</small></td>
-                <td class="text-start small text-secondary">${item.remark || '無'}</td>
-                <td>${statusBadge}</td>
-                <td><div class="d-flex flex-column align-items-center">${actionBtn}</div></td>
-            </tr>
-        `;
-    });
-
-    if (!html) html = `<tr><td colspan="7" class="text-muted py-4">🔍 查無交接班紀錄</td></tr>`;
-    tbody.innerHTML = html;
-}
 
 window.openHandoverCheckPopup = function(id, isViewOnly = false) {
     const record = window.handoverList.find(r => r.id === id);
@@ -416,33 +365,6 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
     });
 };
 
-window.voidHandover = function(id) {
-    const record = window.handoverList.find(r => r.id === id);
-    if (!record) return;
-    
-    Swal.fire({
-        title: '確認作廢？',
-        text: '作廢後請前往「1-3級管藥調劑」進行盤盈/盤虧操作修正帳目，修正完畢後再重新產生交班單。',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '確定作廢'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            record.checkStatus = '已作廢';
-            record.cancelEmpID = window.currentUser.empId;
-            record.cancelName = window.currentUser.name; 
-            record.cancelTime = new Date().toLocaleString();
-            
-            renderHandoverHistory();
-            updateHandoverStatusAPI(record.id, '已作廢'); 
-            
-            Swal.fire('已作廢', '單據已作廢，請盡速修正系統庫存。', 'info');
-        }
-    });
-};
-
 async function updateHandoverStatusAPI(id, status) {
     const record = window.handoverList.find(r => r.id === id);
     const payload = {
@@ -463,3 +385,239 @@ async function updateHandoverStatusAPI(id, status) {
         });
     } catch(e) {}
 }
+
+// ==========================================
+// ✨ 修正 2：歷史紀錄加入操作按鈕與作廢防呆限制
+// ==========================================
+function renderHandoverHistory() {
+    const tbody = document.getElementById('handoverHistTableBody');
+    if (!tbody) return;
+
+    const filterDateStr = document.getElementById('handoverHistDate').value;
+    const filterStatus = document.getElementById('handoverHistStatus').value;
+    const filterOp = document.getElementById('handoverHistOpSearch').value.toUpperCase().trim();
+    
+    const startOfDay = filterDateStr ? new Date(filterDateStr + "T00:00:00").getTime() : 0;
+    const endOfDay = filterDateStr ? new Date(filterDateStr + "T23:59:59").getTime() : Infinity;
+
+    // ✨ 找出「最新的一筆」已完成紀錄，用來判定作廢權限
+    const completedRecords = window.handoverList.filter(r => r.station === window.currentUser.station && r.checkStatus === '已完成');
+    const latestCompletedId = completedRecords.length > 0 ? completedRecords[0].id : null;
+
+    let html = '';
+    window.handoverList.forEach(item => {
+        if (item.station !== window.currentUser.station) return;
+        if (filterDateStr && item.rawTime && (item.rawTime < startOfDay || item.rawTime > endOfDay)) return;
+        if (filterStatus !== '全部' && item.checkStatus !== filterStatus) return;
+        if (filterOp) {
+            const matchStr = `${item.handoverEmpID} ${item.handoverName} ${item.receiverEmpID} ${item.receiverName}`.toUpperCase();
+            if (!matchStr.includes(filterOp)) return;
+        }
+
+        const isPending = item.checkStatus === '待核對';
+        const isVoided = item.checkStatus === '已作廢';
+        const isCompleted = item.checkStatus === '已完成';
+        
+        let statusBadge = `<span class="badge bg-success">已完成</span>`;
+        if (isPending) statusBadge = `<span class="badge bg-warning text-dark border border-warning shadow-sm">待核對</span>`;
+        if (isVoided) statusBadge = `<span class="badge bg-secondary">已作廢</span>`;
+
+        let actionBtn = '';
+        if (isPending) {
+            actionBtn = `
+                <button class="btn btn-sm btn-primary fw-bold px-3 py-1 shadow-sm w-100 mb-1" onclick="openHandoverCheckPopup('${item.id}')">🔍 執行核對</button>
+                <button class="btn btn-sm btn-outline-danger px-2 py-1 w-100" onclick="voidHandover('${item.id}', true)">🗑️ 數量有誤作廢</button>
+            `;
+        } else {
+            // ✨ 防呆：只有已完成的「最新那一筆」才可以被作廢
+            const canVoid = (isCompleted && item.id === latestCompletedId);
+            const voidAttr = canVoid ? '' : 'disabled title="只能作廢最新的一筆交班紀錄"';
+            const editAttr = isVoided ? 'disabled' : ''; 
+
+            actionBtn = `
+                <button class="btn btn-sm btn-outline-info py-0 px-2 mb-1 w-100" style="font-size:0.8rem;" onclick="openHandoverCheckPopup('${item.id}', true)">📄 點交明細</button>
+                <div class="btn-group btn-group-sm w-100 mb-1">
+                    <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="editHandover('${item.id}')" ${editAttr}>✏️</button>
+                    <button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="voidHandover('${item.id}', false)" ${voidAttr}>🗑️</button>
+                </div>
+                <button class="btn btn-sm btn-outline-warning text-dark fw-bold py-0 w-100" style="font-size:0.7rem;" onclick="reportHandover('${item.id}')" ${editAttr}>⚠️ 通報</button>
+            `;
+        }
+
+        html += `
+            <tr class="${isVoided ? 'table-secondary text-muted' : (isPending ? 'table-warning' : '')}">
+                <td class="font-monospace small">
+                    <div>${item.createTime.split(' ')[0]}</div>
+                    <div class="text-secondary">${item.createTime.split(' ')[1] || ''}</div>
+                </td>
+                <td class="fw-bold text-danger">${item.shiftName}</td>
+                <td><div class="fw-bold">${item.handoverName}</div><small class="text-muted">${item.handoverEmpID}</small></td>
+                <td><div class="fw-bold">${item.receiverName}</div><small class="text-muted">${item.receiverEmpID}</small></td>
+                <td class="text-start small text-secondary">${item.remark || '無'}</td>
+                <td>${statusBadge}</td>
+                <td style="width: 14%;"><div class="d-flex flex-column align-items-center">${actionBtn}</div></td>
+            </tr>
+        `;
+    });
+
+    if (!html) html = `<tr><td colspan="7" class="text-muted py-4">🔍 查無交接班紀錄</td></tr>`;
+    tbody.innerHTML = html;
+}
+
+// ✨ 加入原因填寫的作廢邏輯
+window.voidHandover = function(id, isPending = false) {
+    const record = window.handoverList.find(r => r.id === id);
+    if (!record) return;
+    
+    let textStr = isPending ? '發現數量不符作廢，請前往盤盈虧修正。' : '作廢已完成紀錄將可能解除系統鎖定。';
+    
+    Swal.fire({
+        title: '確認作廢？',
+        text: textStr + '請填寫作廢原因：',
+        input: 'text',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '確定作廢',
+        inputValidator: (value) => { if (!value) return '作廢理由為必填！'; }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            record.checkStatus = '已作廢';
+            record.cancelEmpID = window.currentUser.empId;
+            record.cancelName = window.currentUser.name; 
+            record.cancelTime = new Date().toLocaleString();
+            record.cancelReason = result.value;
+            
+            checkSystemLockStatus(); // 重新驗證鎖定狀態
+            renderHandoverHistory();
+            autoSelectNextShift(); // 釋放選單
+            updateHandoverActionAPI(record.id, '已作廢', result.value, 'cancel'); 
+            Swal.fire('已作廢', '單據已作廢。', 'info');
+        }
+    });
+};
+
+// ✨ 編輯邏輯 (修改備註)
+window.editHandover = function(id) {
+    const record = window.handoverList.find(r => r.id === id);
+    if (!record) return;
+
+    Swal.fire({
+        title: '✏️ 編輯交班備註',
+        input: 'textarea',
+        inputValue: record.remark,
+        inputPlaceholder: '請輸入修正後的備註說明...',
+        showCancelButton: true,
+        confirmButtonText: '儲存修改',
+        cancelButtonText: '取消'
+    }).then(result => {
+        if (result.isConfirmed) {
+            record.remark = result.value;
+            record.editEmpID = window.currentUser.empId;
+            record.editName = window.currentUser.name;
+            record.editTime = new Date().toLocaleString();
+            record.editReason = "手動編輯備註"; // 或再開一個輸入框給理由
+
+            renderHandoverHistory();
+            updateHandoverActionAPI(record.id, record.checkStatus, result.value, 'edit');
+            Swal.fire('成功', '備註已更新！', 'success');
+        }
+    });
+};
+
+// ✨ 通報邏輯
+window.reportHandover = function(id) {
+    const record = window.handoverList.find(r => r.id === id);
+    if (!record) return;
+
+    Swal.fire({
+        title: '⚠️ 異常通報',
+        input: 'textarea',
+        inputPlaceholder: '請詳細描述異常狀況...',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '送出通報'
+    }).then(result => {
+        if (result.isConfirmed && result.value) {
+            record.reportReason = result.value;
+            record.reportEmpID = window.currentUser.empId;
+            record.reportName = window.currentUser.name;
+            record.reportTime = new Date().toLocaleString();
+            record.reportStatus = '未處理';
+
+            renderHandoverHistory();
+            updateHandoverActionAPI(record.id, record.checkStatus, result.value, 'report');
+            Swal.fire('通報成功', '已送出異常通報給管理員。', 'success');
+        }
+    });
+};
+
+// ✨ 共用更新 API (取代原本的 updateHandoverStatusAPI)
+async function updateHandoverActionAPI(id, status, reason, actionType) {
+    const record = window.handoverList.find(r => r.id === id);
+    const payload = {
+        action: "updateHandoverStatus",
+        id: id,
+        checkStatus: status,
+        updateTime: new Date().toLocaleString(),
+        operatorEmpID: window.currentUser.empId,
+        remark: record.remark || "",
+        
+        cancelEmpID: record.cancelEmpID || "",
+        cancelName: record.cancelName || "",
+        cancelTime: record.cancelTime || "",
+        cancelReason: actionType === 'cancel' ? reason : (record.cancelReason || ""),
+
+        editEmpID: record.editEmpID || "",
+        editName: record.editName || "",
+        editTime: record.editTime || "",
+        editReason: actionType === 'edit' ? "編輯備註" : (record.editReason || ""),
+
+        reportEmpID: record.reportEmpID || "",
+        reportName: record.reportName || "",
+        reportTime: record.reportTime || "",
+        reportReason: actionType === 'report' ? reason : (record.reportReason || ""),
+        reportStatus: record.reportStatus || ""
+    };
+    
+    try {
+        await fetch(HANDOVER_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch(e) {}
+}
+
+// ==========================================
+// ✨ 新增：在交班畫面右側顯示當前啟用的管藥結存
+// ==========================================
+window.renderCurrentInventory = function() {
+    const tbody = document.getElementById('handoverInventoryBody');
+    if (!tbody || !window.ctrlDrugDB) return;
+
+    // 只篩選出啟用的品項 (雖然 app.js 已經濾過，再加強防呆)
+    const activeDrugs = window.ctrlDrugDB.filter(d => d.status !== '停用');
+
+    let html = '';
+    activeDrugs.forEach(d => {
+        const code = d.code || d.drugCode;
+        const name = d.name || d.drugName;
+        const qty = d.quantity || 0;
+        
+        html += `
+            <tr>
+                <td class="fw-bold">${code}</td>
+                <td class="text-start text-truncate" style="max-width:200px;">${name}</td>
+                <td class="fs-5 fw-bold text-primary">${qty}</td>
+                <td class="text-muted">-</td>
+            </tr>
+        `;
+    });
+
+    if(!html) html = '<tr><td colspan="4" class="text-muted py-5">目前無任何啟用的管藥品項</td></tr>';
+    tbody.innerHTML = html;
+};
