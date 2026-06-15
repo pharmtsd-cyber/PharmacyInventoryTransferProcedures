@@ -69,10 +69,46 @@ window.fetchHandoverHistoryFromDB = async function() {
         // ✨ GET 歷史交班紀錄
         const response = await fetch(GET_API_URL + "&action=getHandover", { method: 'GET' });
         if (response.ok) {
-            const rawData = await response.json();
-            // 這裡假設你後端吐回來的是依照標題分群好的 JSON 陣列
-            // 若還沒寫好 API，這段會失敗並跳到 catch，改用本地暫存執行
-            window.handoverList = rawData.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+            const rawFlatData = await response.json();
+            
+            // 🚀 核心魔法：將 SharePoint 的「扁平化單行資料」轉換為前端需要的「單據巢狀結構」
+            const groupedData = {};
+            
+            rawFlatData.forEach(row => {
+                // 應對 Power Automate 回傳的大小寫不一問題
+                const id = row.Title || row.標題 || row.id; 
+                
+                if (!groupedData[id]) {
+                    // 若尚未建立該單號，則初始化單據表頭
+                    groupedData[id] = {
+                        id: id,
+                        station: row.Station || row.station || '',
+                        shiftName: row.ShiftName || row.shiftName || '',
+                        shiftOrder: parseInt(row.ShiftOrder || row.shiftOrder || 999, 10),
+                        handoverEmpID: row.HandoverEmpID || row.handoverEmpID || '',
+                        handoverName: row.HandoverName || row.handoverName || '',
+                        receiverEmpID: row.ReceiverEmpID || row.receiverEmpID || '',
+                        receiverName: row.ReceiverName || row.receiverName || '',
+                        remark: row.Remark || row.remark || '',
+                        checkStatus: row.CheckStatus || row.checkStatus || '正常',
+                        createTime: row.CreateTime || row.createTime || '',
+                        snapshot: [] // 初始化藥品快照陣列
+                    };
+                }
+                
+                // 把該列的藥品細節塞進 snapshot 陣列中
+                if (row.DrugCode || row.drugCode) {
+                    groupedData[id].snapshot.push({
+                        drugCode: row.DrugCode || row.drugCode,
+                        drugName: row.DrugName || row.drugName,
+                        theoreticalQty: parseInt(row.TheoreticalQty || row.theoreticalQty || 0, 10),
+                        actualQty: parseInt(row.ActualQty || row.actualQty || 0, 10)
+                    });
+                }
+            });
+            
+            // 將物件轉回陣列，並依照建立時間由新到舊排序
+            window.handoverList = Object.values(groupedData).sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
         }
     } catch (error) {
         console.warn("⚠️ 交班紀錄 API 尚未建置或連線失敗，目前使用本地暫存模式運行。");
