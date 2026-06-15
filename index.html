@@ -292,11 +292,17 @@
                                                 <option value="">請選擇班別...</option>
                                             </select>
 
-                                            <label class="form-label fw-bold text-dark">交班人 (本機登入者)：</label>
-                                            <input type="text" class="form-control mb-3 bg-white" id="handoverEmpOutput" readonly>
+                                            <label class="form-label fw-bold text-dark">交班人 (預設前一班接班人)：</label>
+                                            <div class="position-relative mb-3">
+                                                <input type="text" class="form-control border-secondary bg-white" id="handoverEmpOutput" placeholder="輸入姓名或員編搜尋..." autocomplete="off">
+                                                <div id="handover-emp-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050; max-height: 200px; overflow-y: auto;"></div>
+                                            </div>
 
-                                            <label class="form-label fw-bold text-primary">接班人 (刷條碼或輸入員編)：</label>
-                                            <input type="text" class="form-control border-primary mb-3 shadow-sm" id="receiverEmpInput" placeholder="請刷入接班人識別證...">
+                                            <label class="form-label fw-bold text-primary">接班人 (預設登入者)：</label>
+                                            <div class="position-relative mb-3">
+                                                <input type="text" class="form-control border-primary shadow-sm" id="receiverEmpInput" placeholder="輸入姓名或員編搜尋..." autocomplete="off">
+                                                <div id="receiver-emp-autocomplete-list" class="autocomplete-items shadow w-100" style="z-index: 1050; max-height: 200px; overflow-y: auto;"></div>
+                                            </div>
 
                                             <label class="form-label fw-bold text-dark mt-3">備註說明：</label>
                                             <textarea class="form-control mb-3" id="handoverRemark" rows="2" placeholder="如有數量不符或其他異常，請填寫..."></textarea>
