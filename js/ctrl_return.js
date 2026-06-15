@@ -107,6 +107,54 @@ window.initCtrlReturnSection = function() {
     if (!window.currentUser || !window.currentUser.station) return;
     document.getElementById('ctrlRetStationDisplay').innerText = `📍 目前工作站：${window.currentUser.station}`;
     setCtrlRetOperator(window.currentUser.empId, window.currentUser.name);
+
+    // ✨ 動態加載退藥選單 (條件：登入單位、值為正 1、啟用狀態、依 SortOrder 排序)
+    const actionSelect = document.getElementById('ctrlRetActionType');
+    if (actionSelect && window.sysParamsDB) {
+        actionSelect.innerHTML = '';
+        
+        const stationOptions = window.sysParamsDB.filter(p => {
+            const title = p.title || p.Title || '';
+            const st = p.station || p.Station || '';
+            const val = p.itemValue || p.ItemValue || '';
+            const status = p.status || p.Status || '';
+            
+            return title === '管藥作業項目' && 
+                   (st === window.currentUser.station || st === '全院通用') &&
+                   (val === '1' || val === '+1' || val === 1) &&
+                   status === '啟用';
+        });
+
+        // 依 SortOrder 排序
+        stationOptions.sort((a, b) => {
+            const orderA = parseInt(a.sortOrder || a.SortOrder || 999, 10);
+            const orderB = parseInt(b.sortOrder || b.SortOrder || 999, 10);
+            return orderA - orderB;
+        });
+
+        if (stationOptions.length === 0) {
+            actionSelect.innerHTML = '<option value="">無適用的退藥作業項目</option>';
+        } else {
+            stationOptions.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt.itemName || opt.ItemName;
+                el.dataset.sign = 1; // 強制入帳正整數
+                el.innerText = opt.itemName || opt.ItemName;
+                actionSelect.appendChild(el);
+            });
+
+            // ✨ 記憶功能：切換分頁回來時，自動恢復上次選定的項目
+            if (window.savedCtrlRetActionType) {
+                const exists = Array.from(actionSelect.options).some(opt => opt.value === window.savedCtrlRetActionType);
+                if (exists) actionSelect.value = window.savedCtrlRetActionType;
+            }
+        }
+
+        actionSelect.addEventListener('change', (e) => {
+            window.savedCtrlRetActionType = e.target.value;
+        });
+        if (actionSelect.value) window.savedCtrlRetActionType = actionSelect.value;
+    }
 };
 
 function setCtrlRetOperator(id, name) {
@@ -352,25 +400,31 @@ function handleCtrlRetOpSearch(e) {
 }
 
 // ==========================================
-// 🚀 專屬退藥寫入 API (強制作業屬性為 "退藥")
+// 🚀 專屬退藥寫入 API (動態依據下拉選單)
 // ==========================================
 async function processCtrlRetEntry(data) {
     if (!window.ctrlRetCurrentOperator || !window.ctrlRetCurrentOperator.empId) {
         alert("無法辨識退藥藥師身分，請重新設定！"); return false;
     }
 
+    // ✨ 抓取動態選單的值與正負號
+    const actionSelect = document.getElementById('ctrlRetActionType');
+    if (!actionSelect || !actionSelect.value) {
+        alert("❌ 請先選擇退藥作業項目！"); return false;
+    }
+    const selectedActionText = actionSelect.value;
+    const sign = parseInt(actionSelect.options[actionSelect.selectedIndex].dataset.sign, 10) || 1;
+
     // ==========================================
-    // ✨ 新增：住院藥局專屬防呆與必填驗證邏輯
+    // ✨ 住院藥局專屬防呆與必填驗證邏輯
     // ==========================================
     const isIPD = window.currentUser && window.currentUser.station === '住院藥局';
     const remarkValue = document.getElementById('ctrlRetRemarkInput') ? document.getElementById('ctrlRetRemarkInput').value.trim() : '';
     const hasRemark = remarkValue.length > 0;
     const returnNoValue = data.returnNo || "";
 
-    // 防呆 1：住院藥局退藥，【退藥單號】絕對必填 (不論條碼或手動)
     if (isIPD && !returnNoValue.trim()) {
         alert("⚠️ 住院藥局退藥，【退藥單號】為必填項目！");
-        // 阻擋送出，並將游標自動指回退藥單號輸入框
         if (data.mode === '條碼' && document.getElementById('ctrlRetBarcodeReturnNo')) {
             document.getElementById('ctrlRetBarcodeReturnNo').focus();
         } else if (data.mode === '手動' && document.getElementById('ctrlRetManualReturnNo')) {
@@ -379,26 +433,22 @@ async function processCtrlRetEntry(data) {
         return false; 
     }
 
-    // 防呆 2：住院藥局【手動退藥】的病歷號/領藥號必填邏輯
     if (isIPD && data.mode === '手動') {
         if (hasRemark) {
-            // 放行：有備註(例如勾選了無原藥袋)，則免填病歷號與領藥號
-            // 為了避免拋轉資料庫時報錯，幫忙塞入防呆字串
             if (!data.patientNo) data.patientNo = "無原藥袋";
             if (!data.prescribeNo) data.prescribeNo = "無原藥袋";
             if (!data.prescribeDate) data.prescribeDate = "無";
         } else {
-            // 沒勾選無原藥袋也沒寫備註，強制要求填寫
             if (!data.patientNo || !data.prescribeNo) {
                 alert("⚠️ 缺少原病歷號或領藥號！\n若無原藥袋，請勾選下方「無原藥袋」或於備註說明填寫原因。");
-                return false; // 阻擋送出
+                return false; 
             }
         }
     }
     // ==========================================
 
-    // 退藥一律為負數庫存扣帳
-    const finalQty = data.quantity * -1; 
+    // ✨ 退藥依據系統參數動態決定正負號入庫 (原先寫死 * -1)
+    const finalQty = Math.abs(data.quantity) * sign; 
 
     const payload = {
         action: "createCtrl",
@@ -407,8 +457,8 @@ async function processCtrlRetEntry(data) {
         drugCode: data.drugCode,
         drugName: data.drugName,
         sap: data.sapCode,
-        quantity: finalQty, // ✨ 負數退庫
-        actionType: "退藥", // ✨ 強制作業屬性
+        quantity: finalQty, 
+        actionType: selectedActionText, // ✨ 動態寫入選擇的作業項目
         mode: data.mode,
         raw: data.raw,
         patientNo: data.patientNo || "未知",
@@ -425,14 +475,10 @@ async function processCtrlRetEntry(data) {
     payload.timestamp = new Date().toLocaleString();
     payload.rawTime = Date.now();
 
-    // ✨ 完美連動：將退藥紀錄寫入共用的 window.ctrlTransferList！
     if(window.ctrlTransferList) window.ctrlTransferList.unshift(payload);
-    
-    // 更新本地暫存與共用的大表UI
     if(typeof window.saveCtrlListToLocal === 'function') window.saveCtrlListToLocal();
     if(typeof window.updateCtrlListUI === 'function') window.updateCtrlListUI();
     
-    // 送出後清空備註與勾選框
     if(document.getElementById('ctrlRetRemarkInput')) document.getElementById('ctrlRetRemarkInput').value = '';
     const noBagCheck = document.getElementById('ctrlRetNoBagCheck');
     if(noBagCheck) noBagCheck.checked = false;
