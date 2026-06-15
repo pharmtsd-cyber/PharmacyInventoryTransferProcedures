@@ -11,9 +11,12 @@
 <body>
 
 <header class="academic-header">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <h4 class="mb-0 fw-bold tracking-wide">亞東紀念醫院 藥學部｜藥品調撥與管藥作業系統</h4>
-            <div id="headerUserInfo" class="hidden d-flex align-items-center">
+    <div class="container-fluid px-4 d-flex justify-content-between align-items-center" style="height: 60px;">
+        <div class="d-flex align-items-center">
+            <button class="btn btn-outline-light btn-sm me-3 hidden" id="sidebarToggleBtn" style="font-size: 1.2rem; padding: 0.1rem 0.6rem; transition: 0.3s;">☰</button>
+            <h4 class="mb-0 fw-bold tracking-wide">亞東紀念醫院 藥學部｜藥品調撥與管藥作業系統</h4>
+        </div>
+        <div id="headerUserInfo" class="hidden d-flex align-items-center">
             <div class="form-check form-switch me-4 border border-light rounded px-3 py-1 bg-white bg-opacity-25">
                 <input class="form-check-input mt-2" type="checkbox" id="workModeSwitch" style="cursor: pointer;">
                 <label class="form-check-label text-light fw-bold ms-1" for="workModeSwitch" id="workModeLabel" style="cursor: pointer; padding-top:2px;">🔒 個人鎖定模式</label>
@@ -50,29 +53,10 @@
         <button class="btn academic-btn-primary btn-lg w-100 fw-bold" id="loginBtn">登入驗證</button>
     </div>
 
-    <div id="hubSection" class="hidden mx-auto" style="max-width: 900px;">
-        <h5 class="mb-4 text-center academic-title">歡迎登入，<span id="hubUserName"></span>！請選擇作業項目：</h5>
-        <div class="row g-3">
-            <div class="col-md-3">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="transfer">📦<br>進入調撥作業</button>
-            </div>
-            <div class="col-md-3">
-                <button class="btn academic-hub-btn w-100 shadow-sm text-danger border-danger" data-target="ctrl-drug">💊<br>1-3級管藥作業</button>
-            </div>
-            <div class="col-md-3">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="receive">🔔<br>接收通知作業</button>
-            </div>
-            <div class="col-md-3">
-                <button class="btn academic-hub-btn w-100 shadow-sm" data-target="storage">💻<br>藥品管理組嫁接作業</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="mainSection" class="hidden">
-        
-        <div class="d-flex" style="height: calc(100vh - 80px); overflow: hidden;">
+    <div id="mainSection" class="hidden w-100">
+        <div class="d-flex w-100" style="height: calc(100vh - 60px); overflow: hidden;">
             
-            <div class="academic-sidebar bg-white border-end shadow-sm d-flex flex-column flex-shrink-0" style="width: 240px; overflow-y: auto;">
+            <div class="academic-sidebar bg-white border-end shadow-sm d-flex flex-column flex-shrink-0" id="sidebarMenu" style="width: 250px; overflow-y: auto; transition: all 0.3s ease;">
                 <div class="p-3 border-bottom bg-light text-center">
                     <span class="fw-bold text-secondary fs-6">📍 系統選單</span>
                 </div>
@@ -314,10 +298,10 @@
                                             <label class="form-label fw-bold text-primary">接班人 (刷條碼或輸入員編)：</label>
                                             <input type="text" class="form-control border-primary mb-3 shadow-sm" id="receiverEmpInput" placeholder="請刷入接班人識別證...">
 
-                                            <label class="form-label fw-bold text-dark">備註說明：</label>
+                                            <label class="form-label fw-bold text-dark mt-3">備註說明：</label>
                                             <textarea class="form-control mb-3" id="handoverRemark" rows="2" placeholder="如有數量不符或其他異常，請填寫..."></textarea>
 
-                                            <button class="btn btn-danger btn-lg w-100 fw-bold shadow mt-2" id="confirmHandoverBtn">📝 產生點班單並前往核對</button>
+                                            <button class="btn btn-danger btn-lg w-100 fw-bold shadow mt-2" id="generateHandoverBtn">📝 產生點班單並前往核對</button>
                                         </div>
                                     </div>
                                 </div>
@@ -346,6 +330,56 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="content-ctrl-handover-history" class="hidden">
+                    <div class="card academic-card p-4 bg-white">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h5 class="text-danger fw-bold mb-0">📜 管制藥品交接班點交紀錄</h5>
+                        </div>
+                        
+                        <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
+                            <div class="col-xl-3 col-md-3">
+                                <label class="form-label fw-bold small text-danger">📅 查詢日期</label>
+                                <input type="date" class="form-control form-control-sm border-danger" id="handoverHistDate">
+                            </div>
+                            <div class="col-xl-4 col-md-4 position-relative">
+                                <label class="form-label fw-bold small text-secondary">👤 交班/接班藥師</label>
+                                <input type="text" class="form-control form-control-sm border-secondary" id="handoverHistOpSearch" placeholder="輸入姓名或員編...">
+                            </div>
+                            <div class="col-xl-3 col-md-3">
+                                <label class="form-label fw-bold small text-secondary">⚖️ 狀態</label>
+                                <select class="form-select form-select-sm border-secondary" id="handoverHistStatus">
+                                    <option value="全部">全部</option>
+                                    <option value="待核對">待核對 (點交中)</option>
+                                    <option value="已完成">已完成</option>
+                                    <option value="已作廢">已作廢</option>
+                                </select>
+                            </div>
+                            <div class="col-xl-2 col-md-2">
+                                <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="handoverHistSearchBtn">🔍 篩選紀錄</button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
+                                <thead class="table-danger fw-bold sticky-top" style="z-index: 5;">
+                                    <tr>
+                                        <th style="width: 12%;">建立時間</th>
+                                        <th style="width: 15%;">交班班別</th>
+                                        <th style="width: 15%;">交班人</th>
+                                        <th style="width: 15%;">接班人</th>
+                                        <th>備註</th>
+                                        <th style="width: 12%;">狀態</th>
+                                        <th style="width: 15%;">核對結存 / 操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="handoverHistTableBody">
+                                    <tr><td colspan="7" class="text-muted py-4">請點擊篩選按鈕載入紀錄</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -601,56 +635,6 @@
                             </div>
                         </div>
                     </div> 
-                </div>
-
-                <div id="content-ctrl-handover-history" class="hidden">
-                    <div class="card academic-card p-4 bg-white">
-                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                            <h5 class="text-danger fw-bold mb-0">📜 管制藥品交接班點交紀錄</h5>
-                        </div>
-                        
-                        <div class="row g-2 mb-4 bg-light p-3 border border-danger rounded align-items-end">
-                            <div class="col-xl-3 col-md-3">
-                                <label class="form-label fw-bold small text-danger">📅 查詢日期</label>
-                                <input type="date" class="form-control form-control-sm border-danger" id="handoverHistDate">
-                            </div>
-                            <div class="col-xl-4 col-md-4 position-relative">
-                                <label class="form-label fw-bold small text-secondary">👤 交班/接班藥師</label>
-                                <input type="text" class="form-control form-control-sm border-secondary" id="handoverHistOpSearch" placeholder="輸入姓名或員編...">
-                            </div>
-                            <div class="col-xl-3 col-md-3">
-                                <label class="form-label fw-bold small text-secondary">⚖️ 狀態</label>
-                                <select class="form-select form-select-sm border-secondary" id="handoverHistStatus">
-                                    <option value="全部">全部</option>
-                                    <option value="待核對">待核對 (點交中)</option>
-                                    <option value="已完成">已完成</option>
-                                    <option value="已作廢">已作廢</option>
-                                </select>
-                            </div>
-                            <div class="col-xl-2 col-md-2">
-                                <button class="btn btn-danger btn-sm w-100 fw-bold shadow-sm" id="handoverHistSearchBtn">🔍 篩選紀錄</button>
-                            </div>
-                        </div>
-                
-                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                            <table class="table table-bordered table-hover align-middle bg-white text-center shadow-sm" style="font-size: 0.9rem;">
-                                <thead class="table-danger fw-bold sticky-top" style="z-index: 5;">
-                                    <tr>
-                                        <th style="width: 12%;">建立時間</th>
-                                        <th style="width: 15%;">交班班別</th>
-                                        <th style="width: 15%;">交班人</th>
-                                        <th style="width: 15%;">接班人</th>
-                                        <th>備註</th>
-                                        <th style="width: 12%;">狀態</th>
-                                        <th style="width: 15%;">核對結存 / 操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="handoverHistTableBody">
-                                    <tr><td colspan=\"7\" class=\"text-muted py-4\">請點擊篩選按鈕載入紀錄</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 </div>
 
                 <div id="content-ctrl-history" class="hidden">
