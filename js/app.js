@@ -10,6 +10,7 @@ window.sysParamsDB = [];
 window.currentUser = {};
 window.currentOperator = {}; 
 window.workMode = 'personal';
+window.ctrlSystemStatus = 'LOCKED_PRE';
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchSystemData();
@@ -201,27 +202,55 @@ function enterSystem(tabName) {
     switchTab(tabName);
 }
 
-function switchTab(tabName) {
-    document.querySelectorAll('.academic-tabs .nav-link').forEach(t => t.classList.remove('active'));
-    const activeTab = document.querySelector(`.academic-tabs .nav-link[data-tab="${tabName}"]`);
+// ==========================================
+// 4. 分頁與介面切換 (含智慧游標預設與鎖定阻擋)
+// ==========================================
+window.switchTab = function(tabName) {
+    // 1. 更新左側欄的 Active 樣式
+    document.querySelectorAll('.academic-sidebar .nav-link').forEach(t => t.classList.remove('active'));
+    const activeTab = document.querySelector(`.academic-sidebar .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    ['transfer', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
+    // 2. 隱藏所有內容區塊
+    ['transfer', 'ctrl-handover', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
     });
     
+    // 3. 顯示目標區塊
     const targetContent = document.getElementById(`content-${tabName}`);
     if (targetContent) targetContent.classList.remove('hidden');
 
-    // ✨ 新增：智慧切換與游標預設引擎
-    // 給予 DOM 50 毫秒的渲染時間，確保 focus() 絕對會被觸發
+    // ✨ 4. 判斷系統鎖定狀態！如果是調劑或退藥分頁，根據狀態決定要不要打開遮罩
+    if (tabName === 'ctrl-drug' || tabName === 'ctrl-return') {
+        const lock1 = document.getElementById('ctrlSystemLockOverlay1');
+        const lock2 = document.getElementById('ctrlSystemLockOverlay2');
+        const msg1 = document.getElementById('ctrlLockMessage1');
+        const msg2 = document.getElementById('ctrlLockMessage2');
+
+        if (window.ctrlSystemStatus === 'LOCKED_PRE') {
+            if(lock1) lock1.classList.remove('hidden');
+            if(lock2) lock2.classList.remove('hidden');
+            const text = "⚠️ 今日尚未完成「首班」交接，請先進行開班點交。";
+            if(msg1) msg1.innerText = text; if(msg2) msg2.innerText = text;
+        } else if (window.ctrlSystemStatus === 'LOCKED_POST') {
+            if(lock1) lock1.classList.remove('hidden');
+            if(lock2) lock2.classList.remove('hidden');
+            const text = "⛔ 今日「尾班」交接已完成，帳目已結算，禁止執行任何管藥異動。";
+            if(msg1) msg1.innerText = text; if(msg2) msg2.innerText = text;
+        } else {
+            // OPEN 狀態，解除鎖定遮罩
+            if(lock1) lock1.classList.add('hidden');
+            if(lock2) lock2.classList.add('hidden');
+        }
+    }
+
+    // 5. 游標與模式重置引擎
     setTimeout(() => {
         if (tabName === 'transfer') {
             const modeBarcode = document.getElementById('modeBarcode');
             if (modeBarcode) modeBarcode.checked = true;
-            if (typeof toggleInputMode === 'function') toggleInputMode(); // 強制回歸條碼介面
-            
+            if (typeof toggleInputMode === 'function') toggleInputMode(); 
             if (window.workMode === 'public' && typeof setOperator === 'function') setOperator('', '');
             if (typeof focusCorrectInput === 'function') focusCorrectInput();
             
@@ -229,7 +258,6 @@ function switchTab(tabName) {
             const ctrlModeBarcode = document.getElementById('ctrlModeBarcode');
             if (ctrlModeBarcode) ctrlModeBarcode.checked = true;
             if (typeof toggleCtrlInputMode === 'function') toggleCtrlInputMode();
-            
             if (window.workMode === 'public' && typeof setCtrlOperator === 'function') setCtrlOperator('', '');
             if (typeof focusCorrectCtrlInput === 'function') focusCorrectCtrlInput();
             
@@ -237,12 +265,15 @@ function switchTab(tabName) {
             const ctrlRetModeBarcode = document.getElementById('ctrlRetModeBarcode');
             if (ctrlRetModeBarcode) ctrlRetModeBarcode.checked = true;
             if (typeof toggleCtrlRetMode === 'function') toggleCtrlRetMode();
-            
             if (window.workMode === 'public' && typeof setCtrlRetOperator === 'function') setCtrlRetOperator('', '');
             if (typeof focusCorrectCtrlRetInput === 'function') focusCorrectCtrlRetInput();
+        } else if (tabName === 'ctrl-handover') {
+            // 切換到交接班，帶入本人姓名
+            const empOutput = document.getElementById('handoverEmpOutput');
+            if (empOutput && window.currentUser) empOutput.value = `${window.currentUser.name} (${window.currentUser.empId})`;
         }
     }, 50);
-}
+};
 
 function backToHub() {
     document.getElementById('mainSection').classList.add('hidden');
