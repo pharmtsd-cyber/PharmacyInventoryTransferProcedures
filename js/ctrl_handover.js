@@ -94,6 +94,9 @@ window.initCtrlHandoverSection = function() {
     }
 };
 
+// ==========================================
+// ✨ 獲取歷史交接班紀錄 (包含 ShiftOrder 資料庫優先 + 防彈日期解析)
+// ==========================================
 window.fetchHandoverHistoryFromDB = async function() {
     try {
         const response = await fetch(GET_API_URL + "&action=getHandover", { method: 'GET' });
@@ -104,21 +107,47 @@ window.fetchHandoverHistoryFromDB = async function() {
             rawFlatData.forEach(row => {
                 const id = row.Title || row.標題 || row.id; 
                 if (!groupedData[id]) {
+                    
+                    // ✨ 1. 優先讀取資料庫的 ShiftOrder，舊資料才用反查防呆
+                    let sName = row.ShiftName || row.shiftName || '';
+                    let sOrder = parseInt(row.ShiftOrder || row.shiftOrder, 10);
+                    
+                    if (isNaN(sOrder) || sOrder === 999) {
+                        if (window.handoverShiftConfigs) {
+                            const matchConfig = window.handoverShiftConfigs.find(s => s.itemName === sName);
+                            if (matchConfig) sOrder = parseInt(matchConfig.sortOrder, 10);
+                            else sOrder = 999;
+                        } else {
+                            sOrder = 999;
+                        }
+                    }
+
+                    // ✨ 2. 防彈日期解析：過濾中文字
+                    let dateStr = row.CreateTime || row.createTime || row.Created || '';
+                    let parsedRawTime = Date.now();
+                    if (dateStr) {
+                        if (dateStr.includes('午')) {
+                            parsedRawTime = new Date(dateStr.split(' ')[0]).getTime();
+                        } else {
+                            parsedRawTime = new Date(dateStr).getTime() || Date.now();
+                        }
+                    }
+
                     groupedData[id] = {
                         id: id,
                         station: row.Station || row.station || '',
-                        shiftName: row.ShiftName || row.shiftName || '',
-                        shiftOrder: parseInt(row.ShiftOrder || row.shiftOrder || 999, 10),
+                        shiftName: sName,
+                        shiftOrder: sOrder, // 👈 填入精確排序
                         handoverEmpID: row.HandoverEmpID || row.handoverEmpID || '',
                         handoverName: row.HandoverName || row.handoverName || '', 
                         receiverEmpID: row.ReceiverEmpID || row.receiverEmpID || '',
                         receiverName: row.ReceiverName || row.receiverName || '', 
                         remark: row.Remark || row.remark || '',
                         checkStatus: row.CheckStatus || row.checkStatus || '正常',
-                        createTime: row.CreateTime || row.createTime || '',
-                        rawTime: row.RawTime || row.rawTime || new Date(row.CreateTime || row.createTime).getTime() || Date.now(),
+                        createTime: dateStr,
+                        rawTime: parsedRawTime, // 👈 填入精準的當日時間戳
                         
-                        // ✨ 這裡開始是完美接住 GET API 的新欄位
+                        // ✨ 3. 完整接住 GET API 的擴充欄位
                         cancelEmpID: row.CancelEmpID || row.cancelEmpID || '',
                         cancelName: row.CancelName || row.cancelName || '',
                         cancelTime: row.CancelTime || row.cancelTime || '',
@@ -149,16 +178,27 @@ window.fetchHandoverHistoryFromDB = async function() {
                 }
             });
             
-            window.handoverList = Object.values(groupedData).sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+            // 使用時間戳進行排序
+            window.handoverList = Object.values(groupedData).sort((a, b) => b.rawTime - a.rawTime);
         }
     } catch (error) {
-        console.warn("⚠️ 交班紀錄 API 尚未建置或連線失敗，目前使用本地暫存模式運行。");
+        console.warn("⚠️ 交班紀錄 API 發生錯誤:", error);
     } finally {
         checkSystemLockStatus(); 
         renderHandoverHistory();
         autoFillHandoverPersonnel(); 
-        autoSelectNextShift();
-        window.renderCurrentInventory();// ✨ 自動選取下一個班別
+        autoSelectNextShift(); 
+        
+        if (typeof window.renderCurrentInventory === 'function') {
+            window.renderCurrentInventory();
+        }
+        
+        // ✨ 追加防呆：呼叫主程式的 UI 解鎖函數 (如果有的話)
+        if (typeof window.updateSystemLockUI === 'function') {
+            window.updateSystemLockUI();
+        } else if (typeof window.renderCtrlDrugList === 'function' && window.ctrlSystemStatus === 'OPEN') {
+            window.renderCtrlDrugList(); // 重新渲染調劑頁面以解除遮罩
+        }
     }
 };
 
