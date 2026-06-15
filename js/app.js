@@ -180,11 +180,18 @@ function handleLogin() {
         if (storageTab) storageTab.classList.remove('hidden');
     }
 
+    // ✨ 終極滿版引擎：暴力清除所有邊距與寬度限制
     const wrapper = document.querySelector('.wrapper-container');
     if (wrapper) {
-        wrapper.classList.remove('pt-4');
-        wrapper.classList.add('p-0'); 
+        wrapper.className = 'm-0 p-0 w-100'; // 徹底拔除 container-fluid 與 pt-4 的所有預設間距
+        wrapper.style.maxWidth = '100%';     // 強制無視任何最大寬度限制
+        wrapper.style.width = '100vw';       // 強制撐滿視窗 100% 寬度
     }
+    
+    // 🔒 鎖死最外層網頁捲軸，讓捲動完全交給右側的「工作區」獨立運作，體驗更像原生 App
+    document.body.style.overflow = 'hidden'; 
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
     
     const toggleBtn = document.getElementById('sidebarToggleBtn');
     if (toggleBtn) toggleBtn.classList.remove('hidden');
