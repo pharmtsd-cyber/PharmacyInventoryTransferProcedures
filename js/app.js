@@ -194,24 +194,25 @@ function handleLogin() {
 }
 
 // ==========================================
-// 4. 分頁與介面切換 (含智慧游標預設)
+// 4. 分頁與介面切換 (含智慧游標預設與鎖定阻擋)
 // ==========================================
+
+// ✨ 新增：系統鎖定狀態全域變數 (預設首班交接前鎖定)
+window.ctrlSystemStatus = window.ctrlSystemStatus || 'LOCKED_PRE'; 
+
 function enterSystem(tabName) {
     document.getElementById('hubSection').classList.add('hidden');
     document.getElementById('mainSection').classList.remove('hidden');
     switchTab(tabName);
 }
 
-// ==========================================
-// 4. 分頁與介面切換 (含智慧游標預設與鎖定阻擋)
-// ==========================================
 window.switchTab = function(tabName) {
     // 1. 更新左側欄的 Active 樣式
-    document.querySelectorAll('.academic-sidebar .nav-link').forEach(t => t.classList.remove('active'));
-    const activeTab = document.querySelector(`.academic-sidebar .nav-link[data-tab="${tabName}"]`);
+    document.querySelectorAll('#mainTabs .nav-link').forEach(t => t.classList.remove('active'));
+    const activeTab = document.querySelector(`#mainTabs .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    // 2. 隱藏所有內容區塊 (加入 'ctrl-handover-history')
+    // 2. 隱藏所有內容區塊 (加入交接班相關的兩個新分頁)
     ['transfer', 'ctrl-handover', 'ctrl-handover-history', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
@@ -267,8 +268,9 @@ window.switchTab = function(tabName) {
             if (typeof toggleCtrlRetMode === 'function') toggleCtrlRetMode();
             if (window.workMode === 'public' && typeof setCtrlRetOperator === 'function') setCtrlRetOperator('', '');
             if (typeof focusCorrectCtrlRetInput === 'function') focusCorrectCtrlRetInput();
+            
         } else if (tabName === 'ctrl-handover') {
-            // 切換到交接班，帶入本人姓名
+            // 切換到交接班時，自動把登入者的姓名員編帶入
             const empOutput = document.getElementById('handoverEmpOutput');
             if (empOutput && window.currentUser) empOutput.value = `${window.currentUser.name} (${window.currentUser.empId})`;
         }
