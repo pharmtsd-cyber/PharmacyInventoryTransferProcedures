@@ -211,8 +211,8 @@ window.switchTab = function(tabName) {
     const activeTab = document.querySelector(`.academic-sidebar .nav-link[data-tab="${tabName}"]`);
     if (activeTab) activeTab.classList.add('active');
     
-    // 2. 隱藏所有內容區塊
-    ['transfer', 'ctrl-handover', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
+    // 2. 隱藏所有內容區塊 (加入 'ctrl-handover-history')
+    ['transfer', 'ctrl-handover', 'ctrl-handover-history', 'ctrl-drug', 'ctrl-return', 'ctrl-history', 'receive', 'storage', 'history', 'transfer-history'].forEach(t => {
         const contentDiv = document.getElementById(`content-${t}`);
         if (contentDiv) contentDiv.classList.add('hidden');
     });
