@@ -2,25 +2,41 @@
 // 🔄 1-3級管藥：交接班與點交紀錄專屬模組
 // ==========================================
 
+const HANDOVER_API_URL = "https://defaultf611cf53b6864814b03558908d4900.be.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f58bcf2b5f93404bba33ea0e0b5f188b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JNv9I2NOeY6j-DXiQhRMP3kaBTuWQcprSMWBRtnOStQ";
+
 window.handoverList = window.handoverList || []; 
-window.handoverShiftConfigs = []; // 儲存該單位的交班設定，用來判斷首班與尾班
+window.handoverShiftConfigs = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 綁定產生點班單按鈕
     const generateBtn = document.getElementById('generateHandoverBtn');
     if (generateBtn) generateBtn.addEventListener('click', generateHandoverRecord);
 
-    // 綁定歷史紀錄篩選按鈕
     const searchBtn = document.getElementById('handoverHistSearchBtn');
     if (searchBtn) searchBtn.addEventListener('click', renderHandoverHistory);
 
-    // 預設日期為今日
     const todayIso = new Date().toISOString().split('T')[0];
     if (document.getElementById('handoverHistDate')) document.getElementById('handoverHistDate').value = todayIso;
+
+    // ✨ 解除 HTML 的唯讀限制，讓「交班人」可以手動修改
+    const handoverEmpInput = document.getElementById('handoverEmpOutput');
+    if (handoverEmpInput) {
+        handoverEmpInput.removeAttribute('readonly');
+        handoverEmpInput.placeholder = "請輸入交班人員編或姓名...";
+        handoverEmpInput.classList.remove('bg-white'); // 移除純白背景樣式讓它看起來像一般輸入框
+    }
+
+    // 監聽點擊交接班頁籤，自動向後端刷新資料
+    document.querySelectorAll('#mainTabs .nav-link[data-tab^="ctrl-handover"]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (typeof window.fetchHandoverHistoryFromDB === 'function') {
+                window.fetchHandoverHistoryFromDB();
+            }
+        });
+    });
 });
 
 // ==========================================
-// 1. 初始化交接班選單 (動態讀取參數並判定開關班)
+// 1. 初始化與讀取歷史紀錄 (API GET)
 // ==========================================
 window.initCtrlHandoverSection = function() {
     if (!window.currentUser || !window.sysParamsDB) return;
@@ -29,16 +45,14 @@ window.initCtrlHandoverSection = function() {
     if (shiftSelect) {
         shiftSelect.innerHTML = '<option value="">請選擇班別工作...</option>';
         
-        // 篩選出目前單位的啟用交班項目
         let shifts = window.sysParamsDB.filter(p => 
             p.title === '管藥交班項目' && 
             p.status === '啟用' &&
             (p.station === window.currentUser.station || p.station === '全院通用')
         );
 
-        // 依照 SortOrder 排序
         shifts.sort((a, b) => parseInt(a.sortOrder || 999) - parseInt(b.sortOrder || 999));
-        window.handoverShiftConfigs = shifts; // 存入全域供後續判斷首尾班使用
+        window.handoverShiftConfigs = shifts; 
 
         shifts.forEach(s => {
             const opt = document.createElement('option');
@@ -50,78 +64,155 @@ window.initCtrlHandoverSection = function() {
     }
 };
 
+window.fetchHandoverHistoryFromDB = async function() {
+    try {
+        // ✨ GET 歷史交班紀錄
+        const response = await fetch(GET_API_URL + "&action=getHandover", { method: 'GET' });
+        if (response.ok) {
+            const rawData = await response.json();
+            // 這裡假設你後端吐回來的是依照標題分群好的 JSON 陣列
+            // 若還沒寫好 API，這段會失敗並跳到 catch，改用本地暫存執行
+            window.handoverList = rawData.sort((a, b) => new Date(b.createTime) - new Date(a.createTime));
+        }
+    } catch (error) {
+        console.warn("⚠️ 交班紀錄 API 尚未建置或連線失敗，目前使用本地暫存模式運行。");
+    } finally {
+        checkSystemLockStatus(); // 自動檢查首尾班狀態並上/解鎖
+        renderHandoverHistory();
+        autoFillHandoverPersonnel(); // 智慧帶入交班人與接班人
+    }
+};
+
 // ==========================================
-// 2. 產生當下結存點班單 (快照結存)
+// 2. 智慧帶入人員邏輯
+// ==========================================
+function autoFillHandoverPersonnel() {
+    const handoverEmpInput = document.getElementById('handoverEmpOutput');
+    const receiverEmpInput = document.getElementById('receiverEmpInput');
+    if (!handoverEmpInput || !receiverEmpInput || !window.currentUser) return;
+
+    // ✨ 邏輯 1：接班人預設為當前登入者 (允許修改)
+    if (!receiverEmpInput.value) {
+        receiverEmpInput.value = window.currentUser.empId;
+    }
+
+    // ✨ 邏輯 2：交班人預設為本單位最近一次「已完成」的【接班人】 (允許修改)
+    const completedRecords = window.handoverList.filter(r => r.station === window.currentUser.station && r.checkStatus === '已完成');
+    
+    if (completedRecords.length > 0) {
+        // 陣列已照時間排序，第一筆就是最新
+        handoverEmpInput.value = completedRecords[0].receiverEmpID || "";
+    } else {
+        // 若查無紀錄，留空讓藥師自己填
+        if (!handoverEmpInput.value) handoverEmpInput.value = ""; 
+    }
+}
+
+// ==========================================
+// 3. 系統鎖定動態判定
+// ==========================================
+window.checkSystemLockStatus = function() {
+    if (!window.handoverShiftConfigs || window.handoverShiftConfigs.length === 0) return;
+    
+    const minOrder = Math.min(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
+    const maxOrder = Math.max(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
+    const todayStr = new Date().toLocaleDateString();
+    
+    const todayCompleted = window.handoverList.filter(r => 
+        r.station === window.currentUser.station && 
+        r.checkStatus === '已完成' && 
+        new Date(r.createTime).toLocaleDateString() === todayStr
+    );
+    
+    const hasFirstShift = todayCompleted.some(r => r.shiftOrder === minOrder);
+    const hasLastShift = todayCompleted.some(r => r.shiftOrder === maxOrder);
+    
+    if (hasLastShift) window.ctrlSystemStatus = 'LOCKED_POST';
+    else if (hasFirstShift) window.ctrlSystemStatus = 'OPEN';
+    else window.ctrlSystemStatus = 'LOCKED_PRE';
+};
+
+// ==========================================
+// 4. 產生點班單與快照 (API POST - Create)
 // ==========================================
 async function generateHandoverRecord() {
     const shiftSelect = document.getElementById('handoverShiftSelect');
     const shiftName = shiftSelect.value;
     const shiftOrder = shiftSelect.options[shiftSelect.selectedIndex]?.dataset?.order;
-    const receiver = document.getElementById('receiverEmpInput').value.trim();
+    const handoverEmp = document.getElementById('handoverEmpOutput').value.trim();
+    const receiverEmp = document.getElementById('receiverEmpInput').value.trim();
     const remark = document.getElementById('handoverRemark').value.trim();
 
     if (!shiftName) { alert("❌ 請選擇交班班別工作！"); return; }
-    if (!receiver) { alert("❌ 請輸入或刷入接班人識別證！"); return; }
+    if (!handoverEmp) { alert("❌ 請輸入交班人！"); return; }
+    if (!receiverEmp) { alert("❌ 請輸入接班人！"); return; }
 
-    // ✨ 快照當下系統庫存 (作為點交基準)
-    // 實務上這裡會抓取管制藥主檔的當下數量 (TheoreticalQty)
+    // ✨ 瞬間快照結存數量 (這裡會去讀取你的管藥主檔目前的數量)
     const snapshot = window.ctrlDrugDB.map(d => ({
         drugCode: d.code || d.drugCode,
         drugName: d.name || d.drugName,
         theoreticalQty: parseInt(d.quantity || 0, 10), // 系統應有量
-        actualQty: parseInt(d.quantity || 0, 10)       // 實體量預設帶入應有量供藥師調整
+        actualQty: parseInt(d.quantity || 0, 10)       // 實體量預設與應有量一致
     }));
 
-    // ✨ 對齊 CSV 欄位結構
-    const record = {
+    const payload = {
+        action: "createHandover",
         id: "HO_" + Date.now(),
         station: window.currentUser.station,
         shiftName: shiftName,
         shiftOrder: parseInt(shiftOrder, 10),
-        handoverEmpID: window.currentUser.empId,
-        handoverName: window.currentUser.name,
-        receiverEmpID: receiver, // 實務上可在此做接班人員編驗證
-        receiverName: receiver,  // 若有驗證可帶出姓名，目前暫存輸入值
-        keyTransferred: shiftName.includes('鑰匙') ? 'Y' : 'N', // 若下拉選項包含鑰匙字眼自動標記
+        handoverEmpID: handoverEmp,
+        receiverEmpID: receiverEmp,
+        keyTransferred: shiftName.includes('鑰匙') ? 'Y' : 'N',
         createTime: new Date().toLocaleString(),
-        rawTime: Date.now(),
         remark: remark,
-        checkStatus: "待核對", // 狀態：待核對 -> 已完成 / 已作廢
-        checkTime: "",
-        cancelEmpID: "",
-        cancelName: "",
-        cancelTime: "",
+        checkStatus: "待核對", 
         snapshot: snapshot
     };
 
-    window.handoverList.unshift(record);
+    // 先存入本地讓畫面秒切換
+    window.handoverList.unshift(payload);
     
-    // 清空表單
-    document.getElementById('receiverEmpInput').value = '';
     document.getElementById('handoverRemark').value = '';
-
-    // 跳轉至紀錄分頁並渲染
     alert("✅ 點班單已產生！請至「交接班點交紀錄」核對實體數量。");
     window.switchTab('ctrl-handover-history');
     renderHandoverHistory();
+
+    // ⚡ 非同步拋轉 API
+    console.log("🚀 [API 拋轉測試] 準備建立交班單，Payload:", payload);
+    try {
+        await fetch(HANDOVER_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch(e) {
+        console.warn("⚠️ API 拋轉失敗，目前紀錄暫存於本地。");
+    }
 }
 
 // ==========================================
-// 3. 渲染交班歷史紀錄大表
+// 5. 渲染紀錄大表
 // ==========================================
 function renderHandoverHistory() {
     const tbody = document.getElementById('handoverHistTableBody');
     if (!tbody) return;
 
-    // 簡單本地過濾器
     const filterDate = document.getElementById('handoverHistDate').value;
     const filterStatus = document.getElementById('handoverHistStatus').value;
+    const filterOp = document.getElementById('handoverHistOpSearch').value.toUpperCase().trim();
     
     let html = '';
     window.handoverList.forEach(item => {
-        // 過濾邏輯 (示範)
-        if (filterDate && !item.createTime.includes(filterDate.replace(/-/g, '/'))) return; // 簡易日期比對
+        // 過濾邏輯
+        if (item.station !== window.currentUser.station) return;
+        if (filterDate && !item.createTime.includes(filterDate.replace(/-/g, '/'))) return; 
         if (filterStatus !== '全部' && item.checkStatus !== filterStatus) return;
+        if (filterOp) {
+            const hOp = (item.handoverEmpID || "").toUpperCase();
+            const rOp = (item.receiverEmpID || "").toUpperCase();
+            if (!hOp.includes(filterOp) && !rOp.includes(filterOp)) return;
+        }
 
         const isPending = item.checkStatus === '待核對';
         const isVoided = item.checkStatus === '已作廢';
@@ -147,8 +238,8 @@ function renderHandoverHistory() {
                     <div class="text-secondary">${item.createTime.split(' ')[1] || ''}</div>
                 </td>
                 <td class="fw-bold text-danger">${item.shiftName}</td>
-                <td><div class="fw-bold">${item.handoverName}</div><small class="text-muted">${item.handoverEmpID}</small></td>
-                <td><div class="fw-bold">${item.receiverName}</div><small class="text-muted">${item.receiverEmpID}</small></td>
+                <td><div class="fw-bold">${item.handoverEmpID}</div></td>
+                <td><div class="fw-bold">${item.receiverEmpID}</div></td>
                 <td class="text-start small text-secondary">${item.remark || '無'}</td>
                 <td>${statusBadge}</td>
                 <td><div class="d-flex flex-column align-items-center">${actionBtn}</div></td>
@@ -161,7 +252,7 @@ function renderHandoverHistory() {
 }
 
 // ==========================================
-// 4. 開啟核對彈窗與系統解鎖/鎖死判定邏輯
+// 6. 開啟核對視窗與更新狀態 (API POST - Update)
 // ==========================================
 window.openHandoverCheckPopup = function(id, isViewOnly = false) {
     const record = window.handoverList.find(r => r.id === id);
@@ -174,14 +265,13 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
                 <td class="fw-bold">${d.drugCode}</td>
                 <td class="text-start text-truncate" style="max-width: 200px;">${d.drugName}</td>
                 <td class="fs-5 fw-bold text-primary">${d.theoreticalQty}</td>
-                <td class="fs-5 fw-bold ${d.theoreticalQty === d.actualQty ? 'text-success' : 'text-danger'}">${d.actualQty}</td>
             </tr>
         `;
     });
 
     const actionHtml = isViewOnly ? '' : `
         <div class="alert alert-info text-start mt-3 mb-0" style="font-size: 0.9rem;">
-            <strong>📌 點交指引：</strong>請根據上方「系統應有結存」清點金庫實體管藥。<br>
+            <strong>📌 點交指引：</strong>請根據上方「系統結存」清點金庫實體管藥。<br>
             ✅ 若數量一致，請點擊「數量無誤完成交班」。<br>
             ❌ 若有盤盈虧，請「作廢此單」，前往調劑頁面將帳目做平後，再重新開單。
         </div>
@@ -193,14 +283,14 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
             <div class="table-responsive mt-3" style="max-height: 400px; overflow-y: auto;">
                 <table class="table table-bordered table-hover align-middle text-center mb-0">
                     <thead class="table-danger sticky-top">
-                        <tr><th>藥碼</th><th>藥品名稱</th><th>系統結存</th><th>實體點交</th></tr>
+                        <tr><th>藥碼</th><th>藥品名稱</th><th>系統結存</th></tr>
                     </thead>
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
             ${actionHtml}
         `,
-        width: '700px',
+        width: '650px',
         showCancelButton: !isViewOnly,
         showConfirmButton: !isViewOnly,
         confirmButtonColor: '#198754',
@@ -211,37 +301,23 @@ window.openHandoverCheckPopup = function(id, isViewOnly = false) {
     }).then((result) => {
         if (result.isConfirmed && !isViewOnly) {
             
-            // 標記完成
             record.checkStatus = '已完成';
             record.checkTime = new Date().toLocaleString();
             
-            // ✨ 核心判定：判斷該班別是否為「排序最小(首班)」或「排序最大(尾班)」
-            if (window.handoverShiftConfigs.length > 0) {
-                const minOrder = Math.min(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
-                const maxOrder = Math.max(...window.handoverShiftConfigs.map(s => parseInt(s.sortOrder || 999)));
-                
-                if (record.shiftOrder === minOrder) {
-                    window.ctrlSystemStatus = 'OPEN'; // 首班完成，解鎖系統！
-                    Swal.fire('開班完成！', '首班交接已確認，管藥調劑系統已【解鎖】。', 'success');
-                } else if (record.shiftOrder === maxOrder) {
-                    window.ctrlSystemStatus = 'LOCKED_POST'; // 尾班完成，鎖死系統！
-                    Swal.fire('關班結算完成！', '今日帳目已結算，管藥調劑系統已【鎖定】。', 'warning');
-                } else {
-                    Swal.fire('交班完成！', '中班交接已確認。', 'success');
-                }
-            } else {
-                Swal.fire('交班完成！', '紀錄已儲存。', 'success');
-            }
-
+            checkSystemLockStatus(); // 自動重新判定鎖定狀態
             renderHandoverHistory();
+            updateHandoverStatusAPI(record.id, '已完成'); // API拋轉更新
             
+            if(window.ctrlSystemStatus === 'OPEN') Swal.fire('開班完成！', '首班交接已確認，管藥調劑系統已【解鎖】。', 'success');
+            else if(window.ctrlSystemStatus === 'LOCKED_POST') Swal.fire('關班結算完成！', '今日帳目已結算，管藥調劑系統已【鎖定】。', 'warning');
+            else Swal.fire('交班完成！', '中班交接已確認。', 'success');
+
         } else if (result.dismiss === Swal.DismissReason.cancel && !isViewOnly) {
             voidHandover(id);
         }
     });
 };
 
-// 作廢點班單
 window.voidHandover = function(id) {
     const record = window.handoverList.find(r => r.id === id);
     if (!record) return;
@@ -258,10 +334,36 @@ window.voidHandover = function(id) {
         if (result.isConfirmed) {
             record.checkStatus = '已作廢';
             record.cancelEmpID = window.currentUser.empId;
-            record.cancelName = window.currentUser.name;
             record.cancelTime = new Date().toLocaleString();
+            
             renderHandoverHistory();
+            updateHandoverStatusAPI(record.id, '已作廢'); // API拋轉更新
+            
             Swal.fire('已作廢', '單據已作廢，請盡速修正系統庫存。', 'info');
         }
     });
 };
+
+// ==========================================
+// 7. 更新狀態 API (API POST - Update)
+// ==========================================
+async function updateHandoverStatusAPI(id, status) {
+    const payload = {
+        action: "updateHandoverStatus",
+        id: id,
+        checkStatus: status,
+        updateTime: new Date().toLocaleString(),
+        operatorEmpID: window.currentUser.empId
+    };
+    
+    console.log(`🚀 [API 拋轉測試] 更新狀態為 ${status}，Payload:`, payload);
+    try {
+        await fetch(HANDOVER_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch(e) {
+        console.warn("⚠️ API 狀態更新拋轉失敗，目前紀錄暫存於本地。");
+    }
+}
