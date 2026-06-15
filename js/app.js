@@ -15,6 +15,15 @@ window.ctrlSystemStatus = 'LOCKED_PRE';
 document.addEventListener('DOMContentLoaded', () => {
     fetchSystemData();
 
+// ✨ 綁定側邊欄收合按鈕
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    if (sidebarToggleBtn && sidebarMenu) {
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebarMenu.classList.toggle('sidebar-collapsed');
+        });
+    }
+    
     // ✨ 網頁載入時，自動讀取上次記憶的工作站單位，並套用對應主題
     const savedStation = localStorage.getItem('workStation') || '門診藥局';
     const stationSelect = document.getElementById('stationSelect');
@@ -181,15 +190,30 @@ function handleLogin() {
         window.initCtrlReturnSection();
     }
 
-    // 分流畫面
-    if(isSpecial) {
-        document.getElementById('hubUserName').innerText = window.currentUser.name;
-        document.getElementById('hubSection').classList.remove('hidden');
-        document.getElementById('backToHubBtn').classList.remove('hidden');
-        document.getElementById('tab-receive-li').classList.remove('hidden');
-        document.getElementById('tab-storage-li').classList.remove('hidden');
-    } else {
-        enterSystem('transfer');
+    // ==========================================
+    // ✨ 全新畫面分流：一律直接進入系統工作區，並開啟滿版模式
+    // ==========================================
+    if (isSpecial) {
+        // 如果是管理員，直接將特殊頁籤解除隱藏
+        const receiveTab = document.getElementById('tab-receive-li');
+        const storageTab = document.getElementById('tab-storage-li');
+        if (receiveTab) receiveTab.classList.remove('hidden');
+        if (storageTab) storageTab.classList.remove('hidden');
+    }
+
+    // 1. 移除外層 Padding，讓畫面 100% 貼齊螢幕邊緣
+    const wrapper = document.querySelector('.wrapper-container');
+    if (wrapper) {
+        wrapper.classList.remove('pt-4');
+        wrapper.classList.add('p-0'); 
+    }
+    
+    // 2. 顯示左上角 ☰ 側邊欄切換按鈕
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    if (toggleBtn) toggleBtn.classList.remove('hidden');
+
+    // 3. 跳過 Hub 歡迎頁，直接進入調撥作業分頁！
+    enterSystem('transfer');
     }
 }
 
