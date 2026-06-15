@@ -187,6 +187,14 @@ window.updateCtrlHistoryTableUI = function() {
         const reportBtnClass = (isReported || isResolved) ? 'btn-outline-warning text-dark fw-bold' : 'btn-outline-secondary';
         const reportBtnText = (isReported || isResolved) ? '查看通報' : '異常通報';
 
+        // ==================================================
+        // ✨ 新增防呆：鎖定狀態判斷
+        // 如果系統不是 OPEN (交接班未完成)，則禁用編輯與作廢
+        // ==================================================
+        const isSystemLocked = window.ctrlSystemStatus !== 'OPEN';
+        const disableAction = isVoided || isSystemLocked;
+        const lockTooltip = isSystemLocked ? 'title="系統鎖定中，交接班完成後始可操作"' : '';
+
         // 處理明細快取...
         let detailHtml = ``;
         if (item.remark) detailHtml += `<div class="mb-3 border-bottom pb-2"><strong>📍【作業備註】</strong> (👤 ${item.operatorName || '未知'})<br><span class="text-secondary">${item.remark}</span></div>`;
@@ -200,10 +208,9 @@ window.updateCtrlHistoryTableUI = function() {
         const dispDate = item.timestamp ? item.timestamp.split(' ')[0] : '';
         const dispTime = item.timestamp ? item.timestamp.split(' ')[1] : '';
         
-        // ✨ 新增：抓取處方日期 (如果沒有資料就顯示空字串或 '-')
+        // 抓取處方日期
         const prescribeDateDisplay = item.prescribeDate && item.prescribeDate !== "無" ? item.prescribeDate : '-';
 
-        // ✨ 確保這邊的 <td> 數量剛好是 9 個！
         html += `
             <tr class="${rowStyle}">
                 <td style="font-size: 0.8rem;" class="text-start font-monospace">
@@ -232,10 +239,10 @@ window.updateCtrlHistoryTableUI = function() {
                 <td>
                     <div class="d-flex flex-column gap-1 align-items-center">
                         <div class="btn-group btn-group-sm w-100">
-                            <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${isVoided ? 'disabled' : ''}>✏️</button>
+                            <button class="btn btn-outline-secondary py-0 px-2" style="font-size:0.75rem;" onclick="window.editCtrlItem('${item.id}', ${item.quantity}, '${item.actionType}')" ${disableAction ? 'disabled' : ''} ${lockTooltip}>✏️</button>
                             ${isVoided 
-                                ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreCtrlItem('${item.id}')">♻️</button>`
-                                : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidCtrlItem('${item.id}')">🗑️</button>`
+                                ? `<button class="btn btn-outline-success py-0 px-2" style="font-size:0.75rem;" onclick="window.restoreCtrlItem('${item.id}')" ${disableAction ? 'disabled' : ''} ${lockTooltip}>♻️</button>`
+                                : `<button class="btn btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="window.voidCtrlItem('${item.id}')" ${disableAction ? 'disabled' : ''} ${lockTooltip}>🗑️</button>`
                             }
                         </div>
                         <button class="btn btn-sm ${reportBtnClass} py-0 w-100 mt-1" style="font-size:0.7rem;" onclick="window.reportAnomalyItem('${item.id}')" ${isVoided ? 'disabled' : ''}>⚠️ ${reportBtnText}</button>
