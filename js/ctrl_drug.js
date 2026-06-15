@@ -116,32 +116,59 @@ window.initCtrlDrugSection = function() {
     const stationDisplay = document.getElementById('ctrlStationDisplay');
     if (stationDisplay) stationDisplay.innerText = `📍 目前工作站：${window.currentUser.station}`;
 
-    // 動態加載 SharePoint 參數選單
+    // ✨ 動態加載調劑選單 (條件：登入單位、值為 -1、啟用狀態、依 SortOrder 排序)
     const actionSelect = document.getElementById('ctrlActionType');
     if (actionSelect && window.sysParamsDB) {
         actionSelect.innerHTML = '';
-        const stationOptions = window.sysParamsDB.filter(p => 
-            p.title === '管藥作業項目' && 
-            (p.station === window.currentUser.station || p.station === '全院通用')
-        );
+        
+        const stationOptions = window.sysParamsDB.filter(p => {
+            const title = p.title || p.Title || '';
+            const st = p.station || p.Station || '';
+            const val = p.itemValue || p.ItemValue || '';
+            const status = p.status || p.Status || '';
+            
+            return title === '管藥作業項目' && 
+                   (st === window.currentUser.station || st === '全院通用') &&
+                   (val === '-1' || val === -1) &&
+                   status === '啟用';
+        });
+
+        // 依 SortOrder 排序 (若未設定則預設排最後)
+        stationOptions.sort((a, b) => {
+            const orderA = parseInt(a.sortOrder || a.SortOrder || 999, 10);
+            const orderB = parseInt(b.sortOrder || b.SortOrder || 999, 10);
+            return orderA - orderB;
+        });
 
         if (stationOptions.length === 0) {
-            actionSelect.innerHTML = '<option value="">請先至後台維護作業項目</option>';
+            actionSelect.innerHTML = '<option value="">無適用的調劑作業項目</option>';
         } else {
             stationOptions.forEach(opt => {
                 const el = document.createElement('option');
-                el.value = opt.itemName;
-                el.dataset.sign = parseInt(opt.itemValue, 10) || -1;
-                el.innerText = opt.itemName;
+                el.value = opt.itemName || opt.ItemName;
+                el.dataset.sign = -1; // 強制扣帳
+                el.innerText = opt.itemName || opt.ItemName;
                 actionSelect.appendChild(el);
             });
+
+            // ✨ 記憶功能：切換分頁回來時，自動恢復上次選定的項目
+            if (window.savedCtrlActionType) {
+                const exists = Array.from(actionSelect.options).some(opt => opt.value === window.savedCtrlActionType);
+                if (exists) actionSelect.value = window.savedCtrlActionType;
+            }
         }
+
+        // 監聽並保存使用者的選擇
+        actionSelect.addEventListener('change', (e) => {
+            window.savedCtrlActionType = e.target.value;
+        });
+        // 首次載入時也要存入預設值
+        if (actionSelect.value) window.savedCtrlActionType = actionSelect.value;
     }
 
     setCtrlOperator(window.currentUser.empId, window.currentUser.name);
     loadCtrlListFromLocal();
 
-    // ✨ 加入這段：連動大表的選單與鎖定單位初始化
     if (typeof window.initCtrlHistorySection === 'function') {
         window.initCtrlHistorySection();
     }
