@@ -117,6 +117,24 @@ window.fetchHandoverHistoryFromDB = async function() {
                         checkStatus: row.CheckStatus || row.checkStatus || '正常',
                         createTime: row.CreateTime || row.createTime || '',
                         rawTime: row.RawTime || row.rawTime || new Date(row.CreateTime || row.createTime).getTime() || Date.now(),
+                        
+                        // ✨ 這裡開始是完美接住 GET API 的新欄位
+                        cancelEmpID: row.CancelEmpID || row.cancelEmpID || '',
+                        cancelName: row.CancelName || row.cancelName || '',
+                        cancelTime: row.CancelTime || row.cancelTime || '',
+                        cancelReason: row.CancelReason || row.cancelReason || '',
+                        
+                        editEmpID: row.EditEmpID || row.editEmpID || '',
+                        editName: row.EditName || row.editName || '',
+                        editTime: row.EditTime || row.editTime || '',
+                        editReason: row.EditReason || row.editReason || '',
+                        
+                        reportEmpID: row.ReportEmpID || row.reportEmpID || '',
+                        reportName: row.ReportName || row.reportName || '',
+                        reportTime: row.ReportTime || row.reportTime || '',
+                        reportReason: row.ReportReason || row.reportReason || '',
+                        reportStatus: row.ReportStatus || row.reportStatus || '',
+                        
                         snapshot: [] 
                     };
                 }
