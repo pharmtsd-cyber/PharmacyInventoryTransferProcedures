@@ -248,3 +248,40 @@ body.mode-public .academic-tabs .nav-link.active {
     min-height: 0 !important; /* 👈 這是最關鍵的魔法！強迫容器收縮，不准無限延伸 */
     overflow-y: auto !important;
 }
+
+/* ==========================================
+   ✨ 左側欄選單 (Sidebar) 專屬樣式 
+========================================== */
+.academic-sidebar {
+    height: 100%;
+}
+.academic-sidebar .nav-link {
+    color: #495057;
+    border-radius: 0.4rem;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 0.25rem;
+    transition: all 0.2s ease-in-out;
+    font-size: 0.95rem;
+}
+.academic-sidebar .nav-link:hover {
+    background-color: #f1f3f5;
+    transform: translateX(3px);
+}
+.academic-sidebar .nav-link.active,
+.academic-sidebar .nav-link.active * {
+    background-color: var(--theme-primary) !important;
+    color: #ffffff !important;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    transform: translateX(3px);
+}
+
+/* ==========================================
+   ✨ 系統防呆鎖定遮罩 (Lock Overlay) 
+========================================== */
+.lock-overlay {
+    z-index: 1040;
+    backdrop-filter: blur(5px);
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 0.5rem;
+}
