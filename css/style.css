@@ -285,3 +285,17 @@ body.mode-public .academic-tabs .nav-link.active {
     background-color: rgba(255, 255, 255, 0.85);
     border-radius: 0.5rem;
 }
+
+/* ==========================================
+   ✨ 側邊欄收合與滿版引擎
+========================================== */
+.sidebar-collapsed {
+    width: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    opacity: 0;
+}
+.wrapper-container.p-0 {
+    padding: 0 !important; /* 登入後移除所有邊距 */
+}
