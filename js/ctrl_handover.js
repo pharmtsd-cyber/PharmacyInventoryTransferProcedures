@@ -17,13 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const todayIso = new Date().toISOString().split('T')[0];
     if (document.getElementById('handoverHistDate')) document.getElementById('handoverHistDate').value = todayIso;
 
-    const handoverEmpInput = document.getElementById('handoverEmpOutput');
-    if (handoverEmpInput) {
-        handoverEmpInput.removeAttribute('readonly');
-        handoverEmpInput.placeholder = "請輸入交班人員編或姓名...";
-        handoverEmpInput.classList.remove('bg-white'); 
-    }
-
     document.querySelectorAll('#mainTabs .nav-link[data-tab^="ctrl-handover"]').forEach(tab => {
         tab.addEventListener('click', () => {
             if (typeof window.fetchHandoverHistoryFromDB === 'function') {
@@ -31,7 +24,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // ✨ 綁定交班與接班人的模糊搜尋 (Autocomplete)
+    bindUserAutocomplete('handoverEmpOutput', 'handover-emp-autocomplete-list');
+    bindUserAutocomplete('receiverEmpInput', 'receiver-emp-autocomplete-list');
 });
+
+// ✨ 共用的藥師模糊搜尋綁定函數
+function bindUserAutocomplete(inputId, listId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    input.addEventListener('input', function(e) {
+        const val = e.target.value.toUpperCase().trim();
+        const list = document.getElementById(listId);
+        list.innerHTML = '';
+        if (!val || !window.realUserDB) return;
+
+        const matches = window.realUserDB.filter(u => u.empId.includes(val) || u.name.includes(val)).slice(0, 10);
+        matches.forEach(user => {
+            const item = document.createElement('div');
+            item.innerHTML = `<strong>${user.empId}</strong> - ${user.name}`;
+            item.className = "p-2 border-bottom text-dark bg-white cursor-pointer autocomplete-hover";
+            item.style.cursor = "pointer";
+            item.addEventListener('click', () => {
+                input.value = `${user.name} (${user.empId})`; // 統一格式
+                list.innerHTML = '';
+            });
+            list.appendChild(item);
+        });
+    });
+
+    // 點擊空白處關閉選單
+    document.addEventListener("click", function (e) {
+        if (e.target !== input) {
+            const list = document.getElementById(listId);
+            if (list) list.innerHTML = '';
+        }
+    });
+}
 
 window.initCtrlHandoverSection = function() {
     if (!window.currentUser || !window.sysParamsDB) return;
@@ -75,12 +106,13 @@ window.fetchHandoverHistoryFromDB = async function() {
                         shiftName: row.ShiftName || row.shiftName || '',
                         shiftOrder: parseInt(row.ShiftOrder || row.shiftOrder || 999, 10),
                         handoverEmpID: row.HandoverEmpID || row.handoverEmpID || '',
-                        handoverName: row.HandoverName || row.handoverName || '', // ✨ 接住 API 回傳的姓名
+                        handoverName: row.HandoverName || row.handoverName || '', 
                         receiverEmpID: row.ReceiverEmpID || row.receiverEmpID || '',
-                        receiverName: row.ReceiverName || row.receiverName || '', // ✨ 接住 API 回傳的姓名
+                        receiverName: row.ReceiverName || row.receiverName || '', 
                         remark: row.Remark || row.remark || '',
                         checkStatus: row.CheckStatus || row.checkStatus || '正常',
                         createTime: row.CreateTime || row.createTime || '',
+                        rawTime: row.RawTime || row.rawTime || new Date(row.CreateTime || row.createTime).getTime() || Date.now(),
                         snapshot: [] 
                     };
                 }
@@ -106,32 +138,23 @@ window.fetchHandoverHistoryFromDB = async function() {
     }
 };
 
-// ==========================================
-// ✨ 新增：智慧解析使用者輸入的字串，提取員編與姓名
-// ==========================================
 function parseUserInfo(inputStr) {
     if (!inputStr) return { id: "", name: "未知" };
     let val = inputStr.trim().toUpperCase();
     
-    // 1. 去員工主檔裡面反查 (比對員編或姓名)
     if (window.realUserDB) {
         let match = window.realUserDB.find(u => u.empId.toUpperCase() === val || u.name === val || val.includes(u.empId.toUpperCase()));
         if (match) return { id: match.empId, name: match.name };
     }
     
-    // 2. 如果主檔查不到，但格式是 "姓名 (員編)"，則用正則表達式硬拆
     let comboMatch = inputStr.match(/(.*?)\s*\((.+?)\)/);
     if (comboMatch) {
         return { name: comboMatch[1].trim(), id: comboMatch[2].trim() };
     }
     
-    // 3. 都找不到，就把輸入的值當人員編，姓名標示未知
     return { id: val, name: "未知" };
 }
 
-// ==========================================
-// ✨ 自動填入交班與接班人 (優化為 姓名+員編 格式)
-// ==========================================
 function autoFillHandoverPersonnel() {
     const handoverEmpInput = document.getElementById('handoverEmpOutput');
     const receiverEmpInput = document.getElementById('receiverEmpInput');
@@ -172,9 +195,6 @@ window.checkSystemLockStatus = function() {
     else window.ctrlSystemStatus = 'LOCKED_PRE';
 };
 
-// ==========================================
-// ✨ 產生交班單 API (加入姓名解析寫入)
-// ==========================================
 async function generateHandoverRecord() {
     const shiftSelect = document.getElementById('handoverShiftSelect');
     const shiftName = shiftSelect.value;
@@ -205,11 +225,12 @@ async function generateHandoverRecord() {
         shiftName: shiftName,
         shiftOrder: parseInt(shiftOrder, 10),
         handoverEmpID: handoverUser.id,
-        handoverName: handoverUser.name,     // ✨ 新增欄位
+        handoverName: handoverUser.name,     
         receiverEmpID: receiverUser.id,
-        receiverName: receiverUser.name,     // ✨ 新增欄位
+        receiverName: receiverUser.name,     
         keyTransferred: shiftName.includes('鑰匙') ? 'Y' : 'N',
         createTime: new Date().toLocaleString(),
+        rawTime: Date.now(), // ✨ 儲存原始時間戳供篩選使用
         remark: remark,
         checkStatus: "待核對", 
         snapshot: snapshot
@@ -222,7 +243,6 @@ async function generateHandoverRecord() {
     window.switchTab('ctrl-handover-history');
     renderHandoverHistory();
 
-    console.log("🚀 [API 拋轉測試] 準備建立交班單，Payload:", payload);
     try {
         await fetch(HANDOVER_API_URL, {
             method: 'POST',
@@ -235,20 +255,27 @@ async function generateHandoverRecord() {
 }
 
 // ==========================================
-// ✨ 渲染交班紀錄 (UI 優化顯示姓名)
+// ✨ 渲染交班紀錄 (修復日期篩選 Bug)
 // ==========================================
 function renderHandoverHistory() {
     const tbody = document.getElementById('handoverHistTableBody');
     if (!tbody) return;
 
-    const filterDate = document.getElementById('handoverHistDate').value;
+    const filterDateStr = document.getElementById('handoverHistDate').value;
     const filterStatus = document.getElementById('handoverHistStatus').value;
     const filterOp = document.getElementById('handoverHistOpSearch').value.toUpperCase().trim();
     
+    // ✨ 將選取的日期轉換為該日 00:00:00 與 23:59:59 的時間戳
+    const startOfDay = filterDateStr ? new Date(filterDateStr + "T00:00:00").getTime() : 0;
+    const endOfDay = filterDateStr ? new Date(filterDateStr + "T23:59:59").getTime() : Infinity;
+
     let html = '';
     window.handoverList.forEach(item => {
         if (item.station !== window.currentUser.station) return;
-        if (filterDate && !item.createTime.includes(filterDate.replace(/-/g, '/'))) return; 
+        
+        // ✨ 改用 rawTime (時間戳) 來精準判定是否落在當天，無視字串格式
+        if (filterDateStr && item.rawTime && (item.rawTime < startOfDay || item.rawTime > endOfDay)) return;
+        
         if (filterStatus !== '全部' && item.checkStatus !== filterStatus) return;
         if (filterOp) {
             const hId = (item.handoverEmpID || "").toUpperCase();
@@ -275,7 +302,6 @@ function renderHandoverHistory() {
             actionBtn = `<button class="btn btn-sm btn-outline-secondary py-1" onclick="openHandoverCheckPopup('${item.id}', true)">📄 查看明細</button>`;
         }
 
-        // ✨ 表格完美顯示 姓名與員編
         html += `
             <tr class="${isVoided ? 'table-secondary text-muted' : (isPending ? 'table-warning' : '')}">
                 <td class="font-monospace small">
@@ -375,7 +401,7 @@ window.voidHandover = function(id) {
         if (result.isConfirmed) {
             record.checkStatus = '已作廢';
             record.cancelEmpID = window.currentUser.empId;
-            record.cancelName = window.currentUser.name; // ✨ 新增作廢人姓名
+            record.cancelName = window.currentUser.name; 
             record.cancelTime = new Date().toLocaleString();
             
             renderHandoverHistory();
@@ -395,17 +421,14 @@ async function updateHandoverStatusAPI(id, status) {
         updateTime: new Date().toLocaleString(),
         operatorEmpID: window.currentUser.empId,
         cancelEmpID: status === '已作廢' ? record.cancelEmpID : "",
-        cancelName: status === '已作廢' ? record.cancelName : "" // ✨ 新增作廢拋轉姓名
+        cancelName: status === '已作廢' ? record.cancelName : "" 
     };
     
-    console.log(`🚀 [API 拋轉測試] 更新狀態為 ${status}，Payload:`, payload);
     try {
         await fetch(HANDOVER_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-    } catch(e) {
-        console.warn("⚠️ API 狀態更新拋轉失敗，目前紀錄暫存於本地。");
-    }
+    } catch(e) {}
 }
