@@ -555,41 +555,61 @@ window.reportHandover = function(id) {
     });
 };
 
-// ✨ 共用更新 API (取代原本的 updateHandoverStatusAPI)
+// ==========================================
+// ✨ 修正：將不同操作分流為獨立的 API Action，避免資料互相覆蓋
+// ==========================================
 async function updateHandoverActionAPI(id, status, reason, actionType) {
     const record = window.handoverList.find(r => r.id === id);
-    const payload = {
-        action: "updateHandoverStatus",
+    if (!record) return;
+
+    // 基礎共同欄位
+    let payload = {
         id: id,
-        checkStatus: status,
         updateTime: new Date().toLocaleString(),
-        operatorEmpID: window.currentUser.empId,
-        remark: record.remark || "",
-        
-        cancelEmpID: record.cancelEmpID || "",
-        cancelName: record.cancelName || "",
-        cancelTime: record.cancelTime || "",
-        cancelReason: actionType === 'cancel' ? reason : (record.cancelReason || ""),
-
-        editEmpID: record.editEmpID || "",
-        editName: record.editName || "",
-        editTime: record.editTime || "",
-        editReason: actionType === 'edit' ? "編輯備註" : (record.editReason || ""),
-
-        reportEmpID: record.reportEmpID || "",
-        reportName: record.reportName || "",
-        reportTime: record.reportTime || "",
-        reportReason: actionType === 'report' ? reason : (record.reportReason || ""),
-        reportStatus: record.reportStatus || ""
+        operatorEmpID: window.currentUser.empId
     };
-    
+
+    // 依據不同動作，賦予專屬的 action 名稱與對應欄位
+    if (actionType === 'complete') {
+        payload.action = "completeHandover";
+        payload.checkStatus = "已完成";
+    } 
+    else if (actionType === 'cancel') {
+        payload.action = "cancelHandover";
+        payload.checkStatus = "已作廢";
+        payload.cancelEmpID = record.cancelEmpID;
+        payload.cancelName = record.cancelName;
+        payload.cancelTime = record.cancelTime;
+        payload.cancelReason = reason;
+    } 
+    else if (actionType === 'edit') {
+        payload.action = "editHandover";
+        payload.remark = record.remark; // 前端已經在 Swal 確認時更新了
+        payload.editEmpID = record.editEmpID;
+        payload.editName = record.editName;
+        payload.editTime = record.editTime;
+        payload.editReason = "手動編輯備註";
+    } 
+    else if (actionType === 'report') {
+        payload.action = "reportHandover";
+        payload.reportStatus = "未處理";
+        payload.reportEmpID = record.reportEmpID;
+        payload.reportName = record.reportName;
+        payload.reportTime = record.reportTime;
+        payload.reportReason = reason;
+    }
+
+    console.log(`🚀 [API 拋轉] 執行動作: ${payload.action}`, payload);
+
     try {
         await fetch(HANDOVER_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-    } catch(e) {}
+    } catch(e) {
+        console.warn(`⚠️ API ${payload.action} 拋轉失敗，目前紀錄暫存於本地。`);
+    }
 }
 
 // ==========================================
